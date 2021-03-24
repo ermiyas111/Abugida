@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Keyboard xmlns:android="http://schemas.android.com/apk/res/android"
+    android:keyWidth="10%p"
+    android:horizontalGap="0px"
+    android:verticalGap="0px"
+    android:keyHeight="60dp"
+    >
+    <Row>
+        <Key android:codes="4609" android:keyLabel="ሁ" android:keyEdgeFlags="left"/>
+        <Key android:codes="4610" android:keyLabel="ሂ"/>
+        <Key android:codes="4611" android:keyLabel="ሃ" android:keyEdgeFlags="right"/>
+    </Row>
+</Keyboard>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#008577</color>
+    <color name="colorPrimaryDark">#00574B</color>
+    <color name="colorPrimaryRed">#FF0000</color>
+    <color name="colorBlack">#2A2A2A</color>
+    <color name="colorLetters">#3A3A3A</color>
+    <color name="colorAccent">#D81B60</color>
+
+    <color name="candidate_normal">#FF000000</color>
+    <color name="candidate_recommended">#FFE35900</color>
+    <color name="candidate_other">#ff808080</color>
+    <color name="candidate_background">#bbffffff</color>
+</resources>
