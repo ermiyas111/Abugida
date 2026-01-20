@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class MKeyboardView extends KeyboardView {
     private int colorMilky;
@@ -341,8 +342,7 @@ public class MKeyboardView extends KeyboardView {
 
     @Override
     public boolean onTouchEvent(MotionEvent me) {
-        if (me.getAction() == MotionEvent.ACTION_DOWN && !stopShowingSurroundingLetters) {
-            Log.d("touchasd", "onTouchEvent:"+String.valueOf(!currentSuggestions.isEmpty()));
+        if (me.getAction() == MotionEvent.ACTION_DOWN && !stopShowingSurroundingLetters && Objects.equals(currentKeyboarrdLayout, hahuLayoutName)) {
             if (!currentSuggestions.isEmpty()) {
                 if (handleSuggestionTap((int) me.getX(), (int) me.getY())) {
                     return true;
@@ -352,7 +352,6 @@ public class MKeyboardView extends KeyboardView {
         if (fidelPressed && getWhichBoxTouched() != 100 && me.getAction() != MotionEvent.ACTION_UP ) {
             // If we are currently selecting a sub-letter (sliding),
             // we manually trigger our own redraw and DO NOT call super.
-            Log.d("Debugging", "chiaaddn: of 0: tasouch " + fidelPressed);
             invalidate();
             return true; // We handled it, don't let KeyboardView logic interfere
         }
