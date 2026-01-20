@@ -199,6 +199,13 @@ public class SoftKeyboard extends InputMethodService
                     }
                 }
 
+                if(onPressedCalled){
+                    Log.d("Debugging", "children: of 0 which:" + whichBox(event.getX(), event.getY()));
+                    MKeyboardView.setWhichBoxTouched(whichBox(event.getX(), event.getY()));
+                    MKeyboardView.setPressedFidelPrimaryCode(pressedPrimaryCode);
+                    Log.d("Debugging", "box returned: fidelPressed" + whichBox(event.getX(), event.getY()));
+                }
+
                 for(Keyboard.Key k: keyList){
                     if(k.isInside((int) event.getX(), (int) event.getY())) {
                         Log.d("Debugging", "Key pressed: X=" + event.getX() + " - Y=" + event.getY());
@@ -266,12 +273,6 @@ public class SoftKeyboard extends InputMethodService
 
                         rightHandCodeList.clear();
                     }
-                }
-
-                if(onPressedCalled){
-                    MKeyboardView.setWhichBoxTouched(whichBox(event.getX(), event.getY()));
-                    MKeyboardView.setPressedFidelPrimaryCode(pressedPrimaryCode);
-                    Log.d("Debugging", "box returned: fidelPressed" + whichBox(event.getX(), event.getY()));
                 }
 
                 /*for(Keyboard.Key k: keyList){
@@ -632,6 +633,7 @@ public class SoftKeyboard extends InputMethodService
             currentSwipingBox = 100;
             MKeyboardView.setFidelPressed(false);
             MKeyboardView.setPressedFidelPrimaryCode(0);
+            MKeyboardView.setWhichBoxTouched(100);
             otherButtonsLocked = false;
             onPressedCalled = false;
             InputConnection ic = getCurrentInputConnection();
@@ -737,7 +739,7 @@ public class SoftKeyboard extends InputMethodService
     }
 
     public void setPressedParameters(int primaryCode){
-        Log.d("Debugging", "Compare: hu" + touchingLeftX);
+        Log.d("Debugging", "children: of 1: param " + touchingPrimaryCode);
         //pressedPrimaryCode = primaryCode;
         pressedPrimaryCode = touchingPrimaryCode;
         pressedPointX = touchingPointX;
@@ -941,6 +943,7 @@ public class SoftKeyboard extends InputMethodService
 
     public int whichBox(double releaseX, double releaseY){
         //if(pressedPrimaryCode != 4608 && pressedPrimaryCode != 4616 && pressedPrimaryCode != 4632 && pressedPrimaryCode != 4648 && pressedPrimaryCode != 4656 && pressedPrimaryCode != 4664 && pressedPrimaryCode != 4672 && pressedPrimaryCode != 4704 && pressedPrimaryCode != 4912){
+        Log.d("Debugging", "children: of 0: scope " + pressedPrimaryCode);
         if(pressedPrimaryCode == 4608 || pressedPrimaryCode == 4720) {
             if (releaseY <= topY && releaseX >= leftX && releaseX <= rightX + ((topY - releaseY) * factor)) {
                 return 0;
@@ -982,8 +985,9 @@ public class SoftKeyboard extends InputMethodService
                 return 100;
             }
         }else{
+            Log.d("Debugging", "children: of 0: " + releaseX + ", " + releaseY + ": " + topY + ", " + buttomY + ": " + leftX + ", " + rightX);
             if (releaseY < topY && releaseX >= leftX - ((topY - releaseY) * factor) && releaseX <= rightX + ((topY - releaseY) * factor)) {
-                Log.d("Debugging", "box seized: zero");
+                Log.d("Debugging", "children: of 0: touch " + pressedPrimaryCode);
                 Log.d("Debugging", "touching space: " + topY);
                 return 0;
             } else if (releaseY <= topY - ((releaseX - rightX) * factor) && releaseX > rightX + ((topY - releaseY) * factor)) {
@@ -1003,6 +1007,7 @@ public class SoftKeyboard extends InputMethodService
             } else if (releaseY <= topY - ((leftX - releaseX) * factor) && releaseX < leftX - ((topY - releaseY) * factor)) {
                 return 7;
             } else {
+                Log.d("Debugging", "children: of 1: touch " + pressedPrimaryCode);
                 return 100;
             }
         }

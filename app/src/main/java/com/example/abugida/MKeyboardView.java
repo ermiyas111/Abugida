@@ -74,7 +74,7 @@ public class MKeyboardView extends KeyboardView {
 
         Log.d("debugging","is it: yes it is");
 
-        Log.d("Debugging", "touching space: " + XZ + "  " + YZ);
+        Log.d("Debugging", "children: of 0: onDraw " + XZ + "  " + YZ + " " + fidelPressed + " " + whichBoxTouched);
 
         setKeyColorForAmharicKeyboard(canvas);
 
@@ -95,7 +95,7 @@ public class MKeyboardView extends KeyboardView {
                     int childPrimaryCode = key.codes[0] + whichChildLetter(whichBoxTouched);
                     char code = (char) childPrimaryCode;
                     //canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 4), key.y - (2 * key.height) - (key.height / 3), paint);
-                    Log.d("Debugging", "children: " + code);
+                    Log.d("Debugging", "children: of 0:" + whichBoxTouched);
                     if (whichBoxTouched == 0) {
                         Log.d("Debugging", "box returned: rectZeroDrawen");
                         canvas.drawRect(key.x - (key.width/10), key.y - (2 * key.height), key.x + key.width + (key.width/10), key.y, rectangle);
@@ -349,6 +349,13 @@ public class MKeyboardView extends KeyboardView {
                 }
             }
         }
+        if (fidelPressed && getWhichBoxTouched() != 100 && me.getAction() != MotionEvent.ACTION_UP ) {
+            // If we are currently selecting a sub-letter (sliding),
+            // we manually trigger our own redraw and DO NOT call super.
+            Log.d("Debugging", "chiaaddn: of 0: tasouch " + fidelPressed);
+            invalidate();
+            return true; // We handled it, don't let KeyboardView logic interfere
+        }
         return super.onTouchEvent(me);
     }
 
@@ -388,7 +395,6 @@ public class MKeyboardView extends KeyboardView {
             return; // Exit the method.
         }
 
-        Log.d("touchasd", String.valueOf(allWords.endsWith(" ")) + allWords);
         String finalWord = amharicTrim(allWords);
 
         Paint paint = new Paint();
