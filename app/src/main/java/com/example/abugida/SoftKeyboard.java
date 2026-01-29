@@ -119,19 +119,6 @@ public class SoftKeyboard extends InputMethodService
 
     @Override
     public View onCreateInputView() {
-        Log.d("debugging","is it: here");
-        Log.d("debugging","ascii፡: " + (int)'.');
-        Log.d("debugging","ascii።: " + (int)',');
-        Log.d("debugging","ascii፤: " + (int)'ጓ');
-        Log.d("debugging","ascii፣: " + (int)'ጿ');
-        Log.d("debugging","ascii፥: " + (int)'፥');
-        Log.d("debugging","ascii፦: " + (int)'፦');
-        Log.d("debugging","ascii፧: " + (int)'፧');
-        Log.d("debugging","ascii3፨: " + (int)'፨');
-        Log.d("debugging","ascii፠: " + (int)'፠');
-
-
-
 
         kv = (MKeyboardView) getLayoutInflater().inflate(R.layout.keyboard, null);
         setKeyBoardLayout(MKeyboardView.hahuLayoutName);
@@ -192,7 +179,6 @@ public class SoftKeyboard extends InputMethodService
                 if(otherButtonsLocked) {
                     //the if condition prevents it from running before on press called and after on release called
                     int temp = whichBox(event.getX(), event.getY());
-                    Log.d("DebuggingTemp", String.valueOf(temp));
                     if (temp != currentSwipingBox && temp != 100) {
                         //vibrate
                         vibrate();
@@ -202,15 +188,12 @@ public class SoftKeyboard extends InputMethodService
                 }
 
                 if(onPressedCalled){
-                    Log.d("Debugging", "children: of 0 which:" + whichBox(event.getX(), event.getY()));
                     MKeyboardView.setWhichBoxTouched(whichBox(event.getX(), event.getY()));
                     MKeyboardView.setPressedFidelPrimaryCode(pressedPrimaryCode);
-                    Log.d("Debugging", "box returned: fidelPressed" + whichBox(event.getX(), event.getY()));
                 }
 
                 for(Keyboard.Key k: keyList){
                     if(k.isInside((int) event.getX(), (int) event.getY())) {
-                        Log.d("Debugging", "Key pressed: X=" + event.getX() + " - Y=" + event.getY());
                         rightHandCodeList.add(4656);
                         rightHandCodeList.add(4664);
                         rightHandCodeList.add(4672);
@@ -226,7 +209,6 @@ public class SoftKeyboard extends InputMethodService
                         rightHandCodeList.add(4928);
                         rightHandCodeList.add(4936);
                         if(rightHandCodeList.contains(k.codes[0])){
-                            Log.d("Debugging", "Shifting: sure");
                             /*touchingLeftX = k.x - k.width;
                             touchingTopY = k.y;
                             touchingRightX = k.x + k.width - k.width;
@@ -360,31 +342,24 @@ public class SoftKeyboard extends InputMethodService
         boolean gifSupported = false;
         for (String mimeType : mimeTypes) {
             if (ClipDescription.compareMimeTypes(mimeType, "image/gif")) {
-                Log.d("DebuggingEmoji", "GifSupported");
                 // gifSupported = true;
             }
             if (ClipDescription.compareMimeTypes(mimeType, "image/jpeg")) {
-                Log.d("DebuggingEmoji", "JpegSupported");
                 // gifSupported = true;
             }
             if (ClipDescription.compareMimeTypes(mimeType, "image/jpg")) {
-                Log.d("DebuggingEmoji", "JpgSupported");
                 // gifSupported = true;
             }
             if (ClipDescription.compareMimeTypes(mimeType, "image/png")) {
-                Log.d("DebuggingEmoji", "PngSupported");
                 // gifSupported = true;
             }
             if (ClipDescription.compareMimeTypes(mimeType, "image/x-ms-bmp")) {
-                Log.d("DebuggingEmoji", "BmpSupported");
                 // gifSupported = true;
             }
             if (ClipDescription.compareMimeTypes(mimeType, "image/vnd.wap.wbmp")) {
-                Log.d("DebuggingEmoji", "WbmpSupported");
                 // gifSupported = true;
             }
             if (ClipDescription.compareMimeTypes(mimeType, "image/webp")) {
-                Log.d("DebuggingEmoji", "WebpSupported");
                 // gifSupported = true;
             }
         }
@@ -660,8 +635,6 @@ public class SoftKeyboard extends InputMethodService
             endPointListY.clear();
         }*/
 
-        Log.d("Actionaas", String.valueOf(primaryCode));
-
         if(otherButtonsLocked) {
             currentSwipingBox = 100;
             MKeyboardView.setFidelPressed(false);
@@ -772,7 +745,6 @@ public class SoftKeyboard extends InputMethodService
     }
 
     public void setPressedParameters(int primaryCode){
-        Log.d("Debugging", "children: of 1: param " + touchingPrimaryCode);
         //pressedPrimaryCode = primaryCode;
         pressedPrimaryCode = touchingPrimaryCode;
         pressedPointX = touchingPointX;
@@ -882,9 +854,6 @@ public class SoftKeyboard extends InputMethodService
         endPointListX.add(centerX + (Math.cos(Math.toRadians(67.5))*radius));
         endPointListY.add(centerY - (Math.sin(Math.toRadians(67.5))*radius));
 
-        Log.d("Debugging", "close sector: " + centerX);
-        Log.d("Debugging", "close sector: " + centerY);
-
         endPointListX.add(centerX + (Math.cos(Math.toRadians(22.5))*radius));
         endPointListY.add(centerY - (Math.sin(Math.toRadians(22.5))*radius));
 
@@ -905,9 +874,6 @@ public class SoftKeyboard extends InputMethodService
 
         endPointListX.add(centerX - (Math.cos(Math.toRadians(67.5))*radius));
         endPointListY.add(centerY - (Math.sin(Math.toRadians(67.5))*radius));
-
-        Log.d("Debugging", "close sector: " + centerX);
-        Log.d("Debugging", "close sector: " + centerY);
     }
 
     public double findDistance(double X1, double Y1, double X2, double Y2){
@@ -948,7 +914,6 @@ public class SoftKeyboard extends InputMethodService
                 }
             }*/
         }
-        Log.d("Debugging", "Close Sector: " + closestSectorYet);
         return closestSectorYet;
     }
 
@@ -976,7 +941,6 @@ public class SoftKeyboard extends InputMethodService
 
     public int whichBox(double releaseX, double releaseY){
         //if(pressedPrimaryCode != 4608 && pressedPrimaryCode != 4616 && pressedPrimaryCode != 4632 && pressedPrimaryCode != 4648 && pressedPrimaryCode != 4656 && pressedPrimaryCode != 4664 && pressedPrimaryCode != 4672 && pressedPrimaryCode != 4704 && pressedPrimaryCode != 4912){
-        Log.d("Debugging", "children: of 0: scope " + pressedPrimaryCode);
         if(pressedPrimaryCode == 4608 || pressedPrimaryCode == 4720) {
             if (releaseY <= topY && releaseX >= leftX && releaseX <= rightX + ((topY - releaseY) * factor)) {
                 return 0;
@@ -1018,20 +982,15 @@ public class SoftKeyboard extends InputMethodService
                 return 100;
             }
         }else{
-            Log.d("Debugging", "children: of 0: " + releaseX + ", " + releaseY + ": " + topY + ", " + buttomY + ": " + leftX + ", " + rightX);
             if (releaseY < topY && releaseX >= leftX - ((topY - releaseY) * factor) && releaseX <= rightX + ((topY - releaseY) * factor)) {
-                Log.d("Debugging", "children: of 0: touch " + pressedPrimaryCode);
-                Log.d("Debugging", "touching space: " + topY);
                 return 0;
             } else if (releaseY <= topY - ((releaseX - rightX) * factor) && releaseX > rightX + ((topY - releaseY) * factor)) {
-                Log.d("Debugging", "box seized: one");
                 return 1;
             } else if (releaseX >= rightX && releaseY > topY - ((releaseX - rightX) * factor) && releaseY <= buttomY + ((releaseX - rightX) * factor)) {
                 return 2;
             } else if (releaseY > buttomY + ((releaseX - rightX) * factor) && releaseX > rightX + ((releaseY - buttomY) * factor)) {
                 return 3;
             } else if (releaseY >= buttomY && releaseX >= leftX - ((releaseY - buttomY) * factor) && releaseX <= rightX + ((releaseY - buttomY) * factor)) {
-                Log.d("Debugging", "touching space: " + buttomY);
                 return 4;
             } else if (releaseY > buttomY + ((leftX - releaseX) * factor) && releaseX < leftX - ((releaseY - buttomY) * factor)) {
                 return 5;
@@ -1040,7 +999,6 @@ public class SoftKeyboard extends InputMethodService
             } else if (releaseY <= topY - ((leftX - releaseX) * factor) && releaseX < leftX - ((topY - releaseY) * factor)) {
                 return 7;
             } else {
-                Log.d("Debugging", "children: of 1: touch " + pressedPrimaryCode);
                 return 100;
             }
         }
@@ -1104,7 +1062,6 @@ public class SoftKeyboard extends InputMethodService
             String lastWord = words[words.length - 1];
             ic.deleteSurroundingText(lastWord.length(), 0);
         }
-        Log.d("touchasd", "final");
 
         // Commit the selected suggestion, followed by a space
         ic.commitText(suggestion + " ", 1);

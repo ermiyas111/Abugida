@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public class MKeyboardView extends KeyboardView {
     private int colorMilky;
@@ -65,6 +66,7 @@ public class MKeyboardView extends KeyboardView {
     private List<Rect> suggestionRects = new ArrayList<>();
     private List<String> currentSuggestions = new ArrayList<>();
     private List<String> commonAmharicWords;
+    private List<String> commonEnglishWords;
 
 
     private SoftKeyboard mService;
@@ -73,18 +75,12 @@ public class MKeyboardView extends KeyboardView {
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        Log.d("debugging","is it: yes it is");
-
-        Log.d("Debugging", "children: of 0: onDraw " + XZ + "  " + YZ + " " + fidelPressed + " " + whichBoxTouched);
-
         setKeyColorForAmharicKeyboard(canvas);
 
         List<Keyboard.Key> keys = getKeyboard().getKeys();
         for(Keyboard.Key key: keys){
             if (key.codes[0] == pressedFidelPrimaryCode) {
-                Log.d("Debugging", "box returned: keyCode");
                 if (fidelPressed) {
-                    Log.d("Debugging", "box returned: fidelPressed");
                     Paint rectangle = new Paint();
                     rectangle.setStrokeWidth(10);
                     rectangle.setColor(Color.rgb(220, 220, 220));
@@ -98,7 +94,6 @@ public class MKeyboardView extends KeyboardView {
 
                     boolean isTopRow = (key.y == 0);
                     //canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 4), key.y - (2 * key.height) - (key.height / 3), paint);
-                    Log.d("Debugging", "chardaren: of 0:" + key);
                     if (whichBoxTouched == 0) {
                         if (isTopRow) {
                             // Top row: Draw horizontally centered on the key, 1 key high
@@ -160,13 +155,10 @@ public class MKeyboardView extends KeyboardView {
 
         List<Keyboard.Key> keys2 = getKeyboard().getKeys();
         for(Keyboard.Key key: keys2){
-            Log.d("fidelOWPressed:", "false1");
             if(fidelPressed){
-                Log.d("fidelOWPressed:", "false2");
                 if(!stopShowingSurroundingLetters) {
                     if (key.pressed && key.codes[0] >= 4608 && key.codes[0] < 4952) {
                         stopShowingSurroundingLetters = true;
-                        Log.d("fidelOWPressed:", "false3");
                         fidelPressed = true;
                         tempKeyCode = key.codes[0];
                         for (int i = 0; i < 8; i++) {
@@ -283,7 +275,8 @@ public class MKeyboardView extends KeyboardView {
         canvas.drawRect(200, 108, 285, 400, rectangle);*/
         //canvas.drawRect(200, 109, 285, 400, rectangle);
 
-        if(currentKeyboarrdLayout.equals(hahuLayoutName)){
+        if(currentKeyboarrdLayout.equals(hahuLayoutName) ||
+                currentKeyboarrdLayout.equals(qwertyLayoutName)){
             displayWord(canvas);
         }
 
@@ -330,12 +323,12 @@ public class MKeyboardView extends KeyboardView {
     private void loadDictionary() {
         commonAmharicWords = new ArrayList<>();
         // Get the resource from the raw folder
-        InputStream inputStream = getContext().getResources().openRawResource(R.raw.amharic_words);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        InputStream inputStreamAmharic = getContext().getResources().openRawResource(R.raw.amharic_words);
+        BufferedReader readerAmharic = new BufferedReader(new InputStreamReader(inputStreamAmharic));
 
         try {
             String line;
-            while ((line = reader.readLine()) != null) {
+            while ((line = readerAmharic.readLine()) != null) {
                 // Add each word from the file to our list
                 if (!line.trim().isEmpty()) {
                     commonAmharicWords.add(line.trim());
@@ -343,10 +336,35 @@ public class MKeyboardView extends KeyboardView {
             }
         } catch (IOException e) {
             // Handle exceptions, e.g., by logging an error
-            Log.e("MKeyboardView", "Error loading dictionary", e);
+            Log.e("MKeyboardView", "Error loading Amharic dictionary", e);
         } finally {
             try {
-                reader.close();
+                readerAmharic.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Load English Dictionary
+        commonEnglishWords = new ArrayList<>();
+        // Get the resource from the raw folder
+        InputStream inputStreamEnglish = getContext().getResources().openRawResource(R.raw.english_words);
+        BufferedReader readerEnglish = new BufferedReader(new InputStreamReader(inputStreamEnglish));
+
+        try {
+            String line;
+            while ((line = readerEnglish.readLine()) != null) {
+                // Add each word from the file to our list
+                if (!line.trim().isEmpty()) {
+                    commonEnglishWords.add(line.trim());
+                }
+            }
+        } catch (IOException e) {
+            // Handle exceptions, e.g., by logging an error
+            Log.e("MKeyboardView", "Error loading English dictionary", e);
+        } finally {
+            try {
+                readerEnglish.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -356,7 +374,8 @@ public class MKeyboardView extends KeyboardView {
 
     @Override
     public boolean onTouchEvent(MotionEvent me) {
-        if (me.getAction() == MotionEvent.ACTION_DOWN && !stopShowingSurroundingLetters && Objects.equals(currentKeyboarrdLayout, hahuLayoutName)) {
+        if ((me.getAction() == MotionEvent.ACTION_DOWN && !stopShowingSurroundingLetters && Objects.equals(currentKeyboarrdLayout, hahuLayoutName)) ||
+                (me.getAction() == MotionEvent.ACTION_UP && Objects.equals(currentKeyboarrdLayout, qwertyLayoutName))) {
             if (!currentSuggestions.isEmpty()) {
                 if (handleSuggestionTap((int) me.getX(), (int) me.getY())) {
                     return true;
@@ -372,21 +391,50 @@ public class MKeyboardView extends KeyboardView {
         return super.onTouchEvent(me);
     }
 
-    public String amharicTrim(String inputText) {
-        String[] words = inputText.split(" ");
-        String lastWord = words[words.length - 1];
-        for (int i=0; i<lastWord.length(); i++){
-            char character = lastWord.charAt(i);
-            int charCode = (int) character; // Cast the character to its integer code
+    public String universalTrim(String inputText) {
+        if (inputText == null || inputText.isEmpty()) {
+            return "";
+        }
 
-            // This is the check you are asking for:
-            if (charCode < 4608 || charCode >= 4952) {
-                String[] amhWords = lastWord.split(String.valueOf(character));
-                lastWord = amhWords[amhWords.length - 1];
-                break;
+        // 1. Get the last segment based on spaces
+        String[] segments = inputText.split("\\s+");
+        String lastSegment = segments[segments.length - 1];
+
+        // 2. Iterate through the last segment to find the "break point"
+        // We look for the last character that ISN'T Amharic or English
+        for (int i = 0; i < lastSegment.length(); i++) {
+            char character = lastSegment.charAt(i);
+
+            if (!isAmharicOrEnglish(character)) {
+                // Split by this "illegal" character and take the last part
+                String[] parts = lastSegment.split(Pattern.quote(String.valueOf(character)));
+                if (parts.length > 0) {
+                    lastSegment = parts[parts.length - 1];
+                } else {
+                    lastSegment = ""; // Case where character is at the very end
+                }
+                // Reset loop to check the new lastSegment for further non-alphanumeric chars
+                i = -1;
             }
         }
-        return lastWord;
+        return lastSegment;
+    }
+
+    /**
+     * Checks if a character is within the Ge'ez (Amharic) block
+     * or the standard English alphabet.
+     */
+    private boolean isAmharicOrEnglish(char c) {
+        // Amharic Unicode Range: 4608 (0x1200) to 4952 (0x1358)
+        boolean isAmharic = (c >= 4608 && c <= 4952);
+
+        // English Alphabet: A-Z (65-90) and a-z (97-122)
+        boolean isEnglish = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+
+        // Optional: Allow numbers or apostrophes (e.g., "don't")
+        boolean isExtra = Character.isDigit(c) || c == '\'';
+
+        return isAmharic || isEnglish || isExtra;
     }
 
     public void displayWord(Canvas canvas) {
@@ -402,13 +450,13 @@ public class MKeyboardView extends KeyboardView {
         char lastChar = allWords.charAt(allWords.length() - 1);
         int charCode = (int) lastChar;
 
-        if (charCode < 4608 || charCode >= 4952) {
+        if (!(charCode >= 4608 && charCode < 4952) && !(charCode >= 65 && charCode <= 122) ) {
             // The last character is NOT a valid Amharic letter (it might be '.', '?', ',', etc.).
             // So, we should not show any suggestions.
             return; // Exit the method.
         }
 
-        String finalWord = amharicTrim(allWords);
+        String finalWord = universalTrim(allWords);
 
         Paint paint = new Paint();
         paint.setTextSize(45);
@@ -416,7 +464,11 @@ public class MKeyboardView extends KeyboardView {
         paint.setTextAlign(Paint.Align.LEFT); // Important for accurate positioning
 
         // Get the list of suggestions
-        currentSuggestions = findClosestMatch(finalWord);
+        if(currentKeyboarrdLayout.equals(hahuLayoutName)) {
+            currentSuggestions = findClosestMatchAmharic(finalWord);
+        } else if(currentKeyboarrdLayout.equals(qwertyLayoutName)) {
+            currentSuggestions = findClosestMatchEnglish(finalWord);
+        }
 
         // Starting position for the first suggestion
         float currentX = 60;
@@ -574,6 +626,79 @@ public class MKeyboardView extends KeyboardView {
         // If a key has neither an icon nor a label, we draw nothing for it.
     }
 
+    public List<String> findClosestMatchEnglish(String inputWord) {
+        if (inputWord == null || inputWord.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        inputWord = inputWord.trim().toLowerCase();
+        String inputSoundex = getSoundex(inputWord);
+
+        List<WordDistance> wordScores = new ArrayList<>();
+
+        for (String word : commonEnglishWords) {
+            String lowerWord = word.toLowerCase();
+
+            // 1. Levenshtein Score (Lower is better)
+            double levScore = levenshteinDistance(inputWord, lowerWord) * 1.0;
+
+            // 2. Phonetic Score (Bonus if they sound the same)
+            double phoneticScore = getSoundex(lowerWord).equals(inputSoundex) ? -1.5 : 0.0;
+
+            // 3. Prefix Bonus (Strongly favor words that start the same)
+            double prefixBonus = lowerWord.startsWith(inputWord) ? -2.0 : 0.0;
+
+            double finalScore = levScore + phoneticScore + prefixBonus;
+
+            wordScores.add(new WordDistance(word, finalScore));
+        }
+
+        // Sort by score ascending
+        wordScores.sort(Comparator.comparingDouble(wd -> wd.distance));
+
+        List<String> closestMatches = new ArrayList<>();
+        for (int i = 0; i < wordScores.size() && i < 15; i++) {
+            closestMatches.add(wordScores.get(i).word);
+        }
+
+        return closestMatches;
+    }
+
+    /**
+     * Simplified Soundex Algorithm
+     * Converts words to a code representing their sound (e.g., "Robert" & "Rupert" = R163)
+     */
+    private String getSoundex(String s) {
+        if (s == null || s.isEmpty()) return "";
+        s = s.toUpperCase();
+
+        char firstLetter = s.charAt(0);
+        StringBuilder code = new StringBuilder().append(firstLetter);
+
+        for (int i = 1; i < s.length() && code.length() < 4; i++) {
+            char c = getSoundexCode(s.charAt(i));
+            // Don't add if same as previous or '0' (vowels/ignored)
+            if (c != '0' && c != code.charAt(code.length() - 1)) {
+                code.append(c);
+            }
+        }
+
+        while (code.length() < 4) code.append('0');
+        return code.toString();
+    }
+
+    private char getSoundexCode(char c) {
+        switch (c) {
+            case 'B': case 'F': case 'P': case 'V': return '1';
+            case 'C': case 'G': case 'J': case 'K': case 'Q': case 'S': case 'X': case 'Z': return '2';
+            case 'D': case 'T': return '3';
+            case 'L': return '4';
+            case 'M': case 'N': return '5';
+            case 'R': return '6';
+            default: return '0'; // Vowels, H, W, Y are ignored
+        }
+    }
+
 
 
     /**
@@ -581,7 +706,7 @@ public class MKeyboardView extends KeyboardView {
      * @param inputWord The word the user is typing.
      * @return A list of the 5 best suggestions.
      */
-    public List<String> findClosestMatch(String inputWord) {
+    public List<String> findClosestMatchAmharic(String inputWord) {
         if (inputWord == null || inputWord.trim().isEmpty()) {
             return Collections.emptyList();
         }
