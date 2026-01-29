@@ -43,7 +43,12 @@
         <Key android:codes="108" android:keyLabel="l" android:keyEdgeFlags="right"/>
     </Row>
     <Row>
-        <Key android:codes="-1" android:keyLabel="CAPS" android:keyWidth="15%p" android:keyEdgeFlags="left"/>
+        <Key
+            android:codes="-1"
+            android:keyIcon="@drawable/ic_custom_shift_hollow"
+            android:keyWidth="15%p"
+            android:keyEdgeFlags="left"
+        />
         <Key android:codes="122" android:keyLabel="z"/>
         <Key android:codes="120" android:keyLabel="x"/>
         <Key android:codes="99" android:keyLabel="c"/>

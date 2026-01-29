@@ -95,16 +95,30 @@ public class MKeyboardView extends KeyboardView {
 
                     int childPrimaryCode = key.codes[0] + whichChildLetter(whichBoxTouched);
                     char code = (char) childPrimaryCode;
+
+                    boolean isTopRow = (key.y == 0);
                     //canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 4), key.y - (2 * key.height) - (key.height / 3), paint);
-                    Log.d("Debugging", "children: of 0:" + whichBoxTouched);
+                    Log.d("Debugging", "chardaren: of 0:" + key);
                     if (whichBoxTouched == 0) {
-                        Log.d("Debugging", "box returned: rectZeroDrawen");
-                        canvas.drawRect(key.x - (key.width/10), key.y - (2 * key.height), key.x + key.width + (key.width/10), key.y, rectangle);
-                        canvas.drawText(String.valueOf(code), key.x - (key.width/10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+                        if (isTopRow) {
+                            // Top row: Draw horizontally centered on the key, 1 key high
+                            canvas.drawRect(key.x - (key.width / 2), key.y, key.x + (key.width * 1.5f), key.y + key.height, rectangle);
+                            canvas.drawText(String.valueOf(code), key.x + (key.width / 3), key.y + (key.height * 0.6f), paint);
+                        } else {
+                            // Normal rows: Original vertical behavior
+                            canvas.drawRect(key.x - (key.width / 10), key.y - (2 * key.height), key.x + key.width + (key.width / 10), key.y, rectangle);
+                            canvas.drawText(String.valueOf(code), key.x - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+                        }
                     } else if (whichBoxTouched == 1) {
-                        Log.d("Debugging", "box returned: rectOneDrawn");
-                        canvas.drawRect(key.x + key.width - (key.width/10), key.y - (2 * key.height), key.x + (2 * key.width) + (key.width/10), key.y, rectangle);
-                        canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+                        if (isTopRow) {
+                            // Top row: Draw 2 keys wide to the right, 1 key high
+                            canvas.drawRect(key.x + key.width, key.y, key.x + (3 * key.width), key.y + key.height, rectangle);
+                            canvas.drawText(String.valueOf(code), key.x + (1.5f * key.width), key.y + (key.height * 0.6f), paint);
+                        } else {
+                            // Normal rows: Original vertical behavior
+                            canvas.drawRect(key.x + key.width - (key.width / 10), key.y - (2 * key.height), key.x + (2 * key.width) + (key.width / 10), key.y, rectangle);
+                            canvas.drawText(String.valueOf(code), key.x + key.width - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+                        }
                     } else if (whichBoxTouched == 2) {
                         canvas.drawRect(key.x + key.width - (key.width/10), key.y - key.height, key.x + (2 * key.width) + (key.width/10), key.y + key.height, rectangle);
                         canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 3), key.y - (key.height / 3), paint);

@@ -2,6 +2,7 @@ package com.example.abugida;
 
 import android.content.ClipDescription;
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
@@ -40,6 +41,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.inputmethod.EditorInfoCompat;
 
 public class SoftKeyboard extends InputMethodService
@@ -400,6 +402,8 @@ public class SoftKeyboard extends InputMethodService
         if(!otherButtonsLocked) {
             InputConnection ic = getCurrentInputConnection();
             playClick(primaryCode);
+            Keyboard currentKeyboard = kv.getKeyboard();
+            if (currentKeyboard == null);
             switch (primaryCode) {
                 case Keyboard.KEYCODE_DELETE:
                     ic.deleteSurroundingText(1, 0);
@@ -409,14 +413,17 @@ public class SoftKeyboard extends InputMethodService
                     // Toggle the shift state flag
                     isShifted = !isShifted;
 
-                    // Use the correct variable for the current keyboard
-                    Keyboard currentKeyboard = kv.getKeyboard();
-                    if (currentKeyboard == null) break;
-
                     // Find and update the specific keys
                     for (Keyboard.Key key : currentKeyboard.getKeys()) {
+                        if (key.codes[0] == -1) {
+                            if (isShifted) {
+                                key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_solid);
+                            } else {
+                                key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
+                            }
+                        }
                         // Check for the 'ሀ'/'ሐ' key (Unicode 4608 and 4624)
-                        if (key.codes[0] == 4608 || key.codes[0] == 4624) {
+                        else if (key.codes[0] == 4608 || key.codes[0] == 4624) {
                             if (isShifted) {
                                 key.label = "ሐ";
                                 key.codes[0] = 4624;
@@ -479,6 +486,18 @@ public class SoftKeyboard extends InputMethodService
                                 key.codes[0] = 4792;
                             }
                         }
+
+                        // Check for standard English letters (a-z and A-Z)
+                        else if (key.codes[0] >= 65 && key.codes[0] <= 122) {
+                            String label = key.label.toString();
+                            if (isShifted) {
+                                key.label = label.toUpperCase();
+                                key.codes[0] = Character.toUpperCase(key.codes[0]);
+                            } else {
+                                key.label = label.toLowerCase();
+                                key.codes[0] = Character.toLowerCase(key.codes[0]);
+                            }
+                        }
                     }
 
                     // This tells the keyboard that the shift state has changed for the icon
@@ -513,6 +532,20 @@ public class SoftKeyboard extends InputMethodService
                     if (primaryCode < 4608 || primaryCode >= 4952) {
                         char code = (char) primaryCode;
                         ic.commitText(String.valueOf(code), 1);
+                        if (primaryCode >= 65 && primaryCode <= 90 && currentKeyboard.isShifted()){
+                            isShifted = !isShifted;
+                            for (Keyboard.Key key : currentKeyboard.getKeys()) {
+                                if (key.codes[0] == -1) {
+                                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
+                                }
+                                else if (key.codes[0] >= 65 && key.codes[0] <= 90) {
+                                    String label = key.label.toString();
+                                    key.label = label.toLowerCase();
+                                    key.codes[0] = Character.toLowerCase(key.codes[0]);
+                                }
+                            }
+                            currentKeyboard.setShifted(isShifted);
+                        }
                     }
                     /*char code = (char)primaryCode;
                     if(Character.isLetter(code) && caps){

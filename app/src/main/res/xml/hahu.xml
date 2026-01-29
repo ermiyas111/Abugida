@@ -50,7 +50,7 @@
     </Row>
     <Row android:keyWidth="10.22%p">
         <Key android:codes="-1"
-            android:keyIcon="@drawable/ic_custom_shift"
+            android:keyIcon="@drawable/ic_custom_shift_hollow"
             android:keyWidth="8%p"
             android:keyEdgeFlags="left"
             android:isModifier="true"
