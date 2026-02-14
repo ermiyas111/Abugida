@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@color/ui_bg">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -10,74 +12,141 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <TextView
-            android:id="@+id/home_title"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/home_title"
-            android:textSize="26sp"
-            android:textStyle="bold"
-            android:paddingBottom="8dp" />
+            android:orientation="vertical"
+            android:background="@drawable/bg_home_header"
+            android:padding="18dp"
+            android:layout_marginBottom="16dp">
 
-        <TextView
-            android:id="@+id/home_tagline"
+            <ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="10dp"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/abugida_logo" />
+
+            <TextView
+                android:id="@+id/home_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_title"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:textColor="@color/ui_surface"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:id="@+id/home_tagline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_tagline"
+                android:textSize="16sp"
+                android:textColor="#E6F2EF" />
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/home_image_card"
+            android:layout_width="match_parent"
+            android:layout_height="190dp"
+            android:layout_marginBottom="8dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/ui_divider"
+            android:backgroundTint="@color/ui_surface">
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/home_image_pager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="12dp"
+            android:layout_marginBottom="16dp" />
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/home_tagline"
-            android:textSize="16sp"
-            android:paddingBottom="16dp" />
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/home_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_section_title"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/ui_text_primary"
+                android:paddingBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_feature_1"
+                android:textSize="15sp"
+                android:textColor="@color/ui_text_secondary"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_feature_2"
+                android:textSize="15sp"
+                android:textColor="@color/ui_text_secondary"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_feature_3"
+                android:textSize="15sp"
+                android:textColor="@color/ui_text_secondary" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingBottom="16dp">
+            android:layout_marginTop="16dp">
 
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_weight="1"
-                android:src="@mipmap/ic_launcher"
-                android:contentDescription="@string/app_name"
-                android:scaleType="centerInside" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip"
+                android:text="Swipe"
+                android:textColor="@color/ui_chip_text"
+                android:textSize="12sp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:layout_marginEnd="8dp" />
 
-            <ImageView
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_weight="1"
-                android:src="@mipmap/ic_launcher_round"
-                android:contentDescription="@string/app_name"
-                android:scaleType="centerInside" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip"
+                android:text="Themes"
+                android:textColor="@color/ui_chip_text"
+                android:textSize="12sp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip"
+                android:text="Bilingual"
+                android:textColor="@color/ui_chip_text"
+                android:textSize="12sp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/home_section_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/home_section_title"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:paddingBottom="8dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/home_feature_1"
-            android:textSize="15sp"
-            android:paddingBottom="6dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/home_feature_2"
-            android:textSize="15sp"
-            android:paddingBottom="6dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/home_feature_3"
-            android:textSize="15sp" />
     </LinearLayout>
 </ScrollView>

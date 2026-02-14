@@ -11,8 +11,10 @@ import java.util.List;
 public class ThemeManager {
     private static final String PREFS_NAME = "keyboard_prefs";
     private static final String PREF_THEME_ID = "theme_id";
-    private static final String DEFAULT_THEME_ID = "sand";
+    private static final String DEFAULT_THEME_ID = "slate";
     public static final String ACTION_THEME_CHANGED = "com.example.abugida.ACTION_THEME_CHANGED";
+    public static final String ACTION_THEME_PREVIEW = "com.example.abugida.ACTION_THEME_PREVIEW";
+    public static final String EXTRA_THEME_ID = "theme_id";
 
     private static final List<KeyboardTheme> THEMES = buildThemes();
 

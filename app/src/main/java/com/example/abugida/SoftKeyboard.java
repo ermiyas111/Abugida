@@ -15,11 +15,6 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.text.Html;
 import android.text.InputType;
-import android.text.Spannable;
-import android.text.SpannableString;
-import android.text.style.RelativeSizeSpan;
-import android.text.style.SuperscriptSpan;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -31,7 +26,6 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -97,7 +91,6 @@ public class SoftKeyboard extends InputMethodService
     static final boolean DEBUG = false;
 
     static final boolean PROCESS_HARD_KEYS = true;
-    private InputMethodManager mInputMethodManager;
     private KeyboardView mInputView;
     private CandidateView mCandidateView;
     private CompletionInfo[] mCompletions;
@@ -111,6 +104,13 @@ public class SoftKeyboard extends InputMethodService
     private long mMetaState;
 
     private static final long CAPS_LOCK_TOGGLE_INTERVAL_MS = 800;
+    private static final int KEYCODE_SWITCH_TO_QWERTY = 10000;
+    private static final int KEYCODE_SWITCH_TO_HAHU = 10001;
+    private static final int KEYCODE_SWITCH_TO_NUMBERS = 10002;
+    private static final int KEYCODE_TOGGLE_ALPHA = 10003;
+    private static final int KEYCODE_SPACE = 32;
+    private static final int FIDEL_START = 4608;
+    private static final int FIDEL_END = 4952;
 
     private Keyboard mSymbolsKeyboard;
     private Keyboard mSymbolsShiftedKeyboard;
@@ -129,6 +129,7 @@ public class SoftKeyboard extends InputMethodService
     private PopupWindow themePopup;
     private KeyboardSettings keyboardSettings;
     private BroadcastReceiver themeChangeReceiver;
+    private String lastAlphaLayout = MKeyboardView.hahuLayoutName;
 
 
     @Override
@@ -137,12 +138,20 @@ public class SoftKeyboard extends InputMethodService
         themeChangeReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (ThemeManager.ACTION_THEME_CHANGED.equals(intent.getAction())) {
+                String action = intent.getAction();
+                if (ThemeManager.ACTION_THEME_CHANGED.equals(action)) {
                     applyTheme(ThemeManager.loadTheme(context));
+                } else if (ThemeManager.ACTION_THEME_PREVIEW.equals(action)) {
+                    if (isInputFromApp()) {
+                        String themeId = intent.getStringExtra(ThemeManager.EXTRA_THEME_ID);
+                        applyTheme(ThemeManager.getThemeById(themeId));
+                    }
                 }
             }
         };
-        IntentFilter filter = new IntentFilter(ThemeManager.ACTION_THEME_CHANGED);
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ThemeManager.ACTION_THEME_CHANGED);
+        filter.addAction(ThemeManager.ACTION_THEME_PREVIEW);
         registerReceiver(themeChangeReceiver, filter);
     }
 
@@ -157,11 +166,35 @@ public class SoftKeyboard extends InputMethodService
 
     @Override
     public View onCreateInputView() {
-
-        kv = (MKeyboardView) getLayoutInflater().inflate(R.layout.keyboard, null);
+        View root = getLayoutInflater().inflate(R.layout.keyboard, null);
+        mCandidateView = root.findViewById(R.id.candidate_view);
+        if (mCandidateView != null) {
+            mCandidateView.setService(this);
+            if (currentTheme != null) {
+                mCandidateView.applyTheme(currentTheme);
+            }
+        }
+        kv = root.findViewById(R.id.keyboard);
+        VariantOverlayView overlayView = root.findViewById(R.id.variant_overlay);
+        if (overlayView != null) {
+            overlayView.setKeyboardView(kv);
+            kv.setVariantOverlayView(overlayView);
+            root.post(() -> {
+                ViewGroup.LayoutParams params = overlayView.getLayoutParams();
+                params.height = root.getHeight();
+                overlayView.setLayoutParams(params);
+                overlayView.invalidate();
+            });
+        }
         setKeyBoardLayout(MKeyboardView.hahuLayoutName);
-        // keyboard = new Keyboard(this, R.xml.hahu);
+        initKeyboardView();
+        applyFidelSuperscripts(keyboard);
+        setupTouchListener();
+        setCandidatesViewShown(false);
+        return root;
+    }
 
+    private void initKeyboardView() {
         kv.setPreviewEnabled(false);
         kv.setOnKeyboardActionListener(this);
         kv.setService(this);
@@ -171,69 +204,59 @@ public class SoftKeyboard extends InputMethodService
         applyTheme(ThemeManager.loadTheme(this));
         applyUserSettings();
 
-        for (Keyboard.Key key : keyboard.getKeys()) {
-            // Find 'ሀ' and add 'ሐ' as superscript
+        popup = new PopupWindow(this);
+
+        View custom = LayoutInflater.from(this).inflate(R.layout.popup, new FrameLayout(this));
+        PopupWindow popup = new PopupWindow(this);
+        if (custom.getParent() != null) {
+            ((ViewGroup) custom.getParent()).removeView(custom);
+        }
+        popup.setContentView(custom);
+    }
+
+    private void applyFidelSuperscripts(Keyboard targetKeyboard) {
+        if (targetKeyboard == null) {
+            return;
+        }
+        for (Keyboard.Key key : targetKeyboard.getKeys()) {
             if (key.codes[0] == 4608) { // ሀ
                 key.label = createStyledLabel("ሀ", "ሐ");
-            }
-            // Find 'ሰ' and add 'ሠ' as superscript
-            else if (key.codes[0] == 4656) { // ሰ
+            } else if (key.codes[0] == 4656) { // ሰ
                 key.label = createStyledLabel("ሰ", "ሠ");
-            }
-            // Find 'በ' and add 'ቨ' as superscript
-            else if (key.codes[0] == 4704) { // በ
+            } else if (key.codes[0] == 4704) { // በ
                 key.label = createStyledLabel("በ", "ቨ");
-            }
-            // Find 'አ' and add 'ዐ' as superscript
-            else if (key.codes[0] == 4768) { // አ
+            } else if (key.codes[0] == 4768) { // አ
                 key.label = createStyledLabel("አ", "ዐ");
-            }
-            // Find 'ፀ' and add 'ጸ' as superscript
-            else if (key.codes[0] == 4928) { // ፀ
+            } else if (key.codes[0] == 4928) { // ፀ
                 key.label = createStyledLabel("ፀ", "ጸ");
-            }
-            // Find 'ኸ' and add 'ኀ' as superscript
-            else if (key.codes[0] == 4792) { // ኸ
+            } else if (key.codes[0] == 4792) { // ኸ
                 key.label = createStyledLabel("ኸ", "ኀ");
             }
         }
+    }
 
-        popup = new PopupWindow(this);
-
-                View custom = LayoutInflater.from(this).inflate(R.layout.popup,new FrameLayout(this));
-                PopupWindow popup = new PopupWindow(this);
-                if(custom.getParent() != null){
-                    ((ViewGroup)custom.getParent()).removeView(custom);
-                }
-                popup.setContentView(custom);
-
-        //retrieveKeys();
-
+    private void setupTouchListener() {
         kv.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                MKeyboardView.setXZ((int)event.getX());
-                MKeyboardView.setYZ((int)event.getY());
+                MKeyboardView.setXZ((int) event.getX());
+                MKeyboardView.setYZ((int) event.getY());
 
-                //get if child letter is changed late after swiping and vibrate
-                if(otherButtonsLocked) {
-                    //the if condition prevents it from running before on press called and after on release called
+                if (otherButtonsLocked) {
                     int temp = whichBox(event.getX(), event.getY());
                     if (temp != currentSwipingBox && temp != 100) {
-                        //vibrate
                         vibrate();
-
                         currentSwipingBox = temp;
                     }
                 }
 
-                if(onPressedCalled){
+                if (onPressedCalled) {
                     MKeyboardView.setWhichBoxTouched(whichBox(event.getX(), event.getY()));
                     MKeyboardView.setPressedFidelPrimaryCode(pressedPrimaryCode);
                 }
 
-                for(Keyboard.Key k: keyList){
-                    if(k.isInside((int) event.getX(), (int) event.getY())) {
+                for (Keyboard.Key k : keyList) {
+                    if (k.isInside((int) event.getX(), (int) event.getY())) {
                         rightHandCodeList.add(4656);
                         rightHandCodeList.add(4664);
                         rightHandCodeList.add(4672);
@@ -248,72 +271,56 @@ public class SoftKeyboard extends InputMethodService
                         rightHandCodeList.add(4904);
                         rightHandCodeList.add(4928);
                         rightHandCodeList.add(4936);
-                        if(rightHandCodeList.contains(k.codes[0])){
-                            /*touchingLeftX = k.x - k.width;
-                            touchingTopY = k.y;
-                            touchingRightX = k.x + k.width - k.width;
-                            touchingButtomY = k.y + k.height;
-                            touchingCenterX = k.x + (k.width/2) - k.width;
-                            touchingCenterY = k.y + (k.height/2);*/
+                        if (rightHandCodeList.contains(k.codes[0])) {
                             touchingKeyWidth = k.width;
                             touchingKeyHeight = k.height;
-                            for(Keyboard.Key l: keyList) {
+                            for (Keyboard.Key l : keyList) {
                                 if (l.isInside((int) event.getX() - (k.width), (int) event.getY())) {
-                                    if((double)event.getX() >= k.x && (double)event.getX() <= k.x + (touchingKeyWidth * (8/10))){
+                                    if ((double) event.getX() >= k.x && (double) event.getX() <= k.x + (touchingKeyWidth * (8 / 10))) {
                                         touchingPrimaryCode = l.codes[0];
-                                        touchingLeftX = l.x + (touchingKeyWidth * (8/10));
+                                        touchingLeftX = l.x + (touchingKeyWidth * (8 / 10));
                                         touchingTopY = k.y;
-                                        touchingRightX = l.x + k.width + (touchingKeyWidth * (8/10));
+                                        touchingRightX = l.x + k.width + (touchingKeyWidth * (8 / 10));
                                         touchingButtomY = k.y + k.height;
-                                        touchingCenterX = l.x + (k.width/2) + (touchingKeyWidth * (8/10));
-                                        touchingCenterY = k.y + (k.height/2);
-                                    }else if((double)event.getX() < k.x + k.width && (double)event.getX() > k.x + (touchingKeyWidth * (8/10))){
+                                        touchingCenterX = l.x + (k.width / 2) + (touchingKeyWidth * (8 / 10));
+                                        touchingCenterY = k.y + (k.height / 2);
+                                    } else if ((double) event.getX() < k.x + k.width && (double) event.getX() > k.x + (touchingKeyWidth * (8 / 10))) {
                                         touchingPrimaryCode = k.codes[0];
-                                        touchingLeftX = k.x + (touchingKeyWidth * (8/10));
+                                        touchingLeftX = k.x + (touchingKeyWidth * (8 / 10));
                                         touchingTopY = k.y;
-                                        touchingRightX = k.x + k.width + (touchingKeyWidth * (8/10));
+                                        touchingRightX = k.x + k.width + (touchingKeyWidth * (8 / 10));
                                         touchingButtomY = k.y + k.height;
-                                        touchingCenterX = k.x + (k.width/2) + (touchingKeyWidth * (8/10));
-                                        touchingCenterY = k.y + (k.height/2);
+                                        touchingCenterX = k.x + (k.width / 2) + (touchingKeyWidth * (8 / 10));
+                                        touchingCenterY = k.y + (k.height / 2);
                                     }
 
                                 }
                             }
-                        }else{
+                        } else {
                             touchingPrimaryCode = k.codes[0];
                             touchingLeftX = k.x;
                             touchingTopY = k.y;
                             touchingRightX = k.x + k.width;
                             touchingButtomY = k.y + k.height;
-                            touchingCenterX = k.x + (k.width/2);
-                            touchingCenterY = k.y + (k.height/2);
+                            touchingCenterX = k.x + (k.width / 2);
+                            touchingCenterY = k.y + (k.height / 2);
                         }
                         touchingPointX = event.getX();
                         touchingPointY = event.getY();
 
                         touchingKeyWidth = k.width;
                         touchingKeyHeight = k.height;
-                        //Log.d("Debugging", "Centre of the key pressed: X=" + topX + " - Y=" + topY);
 
                         rightHandCodeList.clear();
                     }
                 }
-
-                /*for(Keyboard.Key k: keyList){
-                    if(onPressedCalled){
-                        if(k.codes[0] == pressedPrimaryCode){
-                            if(!k.isInside((int) event.getX(), (int) event.getY())) {
-                                if(kv.isPreviewEnabled()){
-                                    kv.setPreviewEnabled(false);
-                                }
-                            }
-                        }
-                    }
-                }*/
+                if (otherButtonsLocked) {
+                    touchingPointX = event.getX();
+                    touchingPointY = event.getY();
+                }
                 return false;
             }
         });
-        return kv;
     }
 
     @NonNull
@@ -350,12 +357,7 @@ public class SoftKeyboard extends InputMethodService
 
 
     @Override public View onCreateCandidatesView() {
-        mCandidateView = new CandidateView(getDisplayContext());
-        mCandidateView.setService(this);
-        if (currentTheme != null) {
-            mCandidateView.applyTheme(currentTheme);
-        }
-        return mCandidateView;
+        return null;
     }
 
 
@@ -364,7 +366,10 @@ public class SoftKeyboard extends InputMethodService
         super.onStartInputView(info, restarting);
         retrieveKeys();
 
+        applyTheme(ThemeManager.loadTheme(this));
         applyUserSettings();
+        updateSuggestionsFromText();
+        setCandidatesViewShown(true);
 
         mComposing.setLength(0);
         updateCandidates();
@@ -437,35 +442,17 @@ public class SoftKeyboard extends InputMethodService
                     ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
                     ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
                     break;
-                case 10000:
-                    setKeyBoardLayout(MKeyboardView.qwertyLayoutName);
+                case KEYCODE_SWITCH_TO_QWERTY:
+                case KEYCODE_SWITCH_TO_HAHU:
+                case KEYCODE_SWITCH_TO_NUMBERS:
+                case KEYCODE_TOGGLE_ALPHA:
+                    handleLayoutSwitch(primaryCode);
                     break;
-                case 10001:
-                    setKeyBoardLayout(MKeyboardView.hahuLayoutName);
-                    break;
-                case 10002:
-                    setKeyBoardLayout(MKeyboardView.numbersLayoutName);
-                    break;
-                case 10003:
-                    if(MKeyboardView.currentKeyboarrdLayout.equals(MKeyboardView.hahuLayoutName)){
-                        setKeyBoardLayout(MKeyboardView.hahuLayoutName);
-                    }else if(MKeyboardView.currentKeyboarrdLayout.equals(MKeyboardView.qwertyLayoutName)){
-                        setKeyBoardLayout(MKeyboardView.qwertyLayoutName);
-                    }
-
-                    break;
-                case 32:
-                    if (keyboardSettings != null && keyboardSettings.isAutoPickSuggestionOnSpace()) {
-                        String suggestion = kv.getTopSuggestion();
-                        if (suggestion != null && suggestion.length() > 0) {
-                            pickSuggestionManually(suggestion);
-                            break;
-                        }
-                    }
-                    ic.commitText(" ", 1);
+                case KEYCODE_SPACE:
+                    commitSpace(ic);
                     break;
                 default:
-                    if (primaryCode < 4608 || primaryCode >= 4952) {
+                    if (primaryCode < FIDEL_START || primaryCode >= FIDEL_END) {
                         char code = (char) primaryCode;
                         ic.commitText(String.valueOf(code), 1);
                     }
@@ -479,10 +466,8 @@ public class SoftKeyboard extends InputMethodService
             maybeDisableOneShotShift(primaryCode);
 
             //fetch string on edit text
-            ExtractedText extracted = ic.getExtractedText(new ExtractedTextRequest(), 0);
-            if(extracted != null){
-                MKeyboardView.fetchedEditTextValue = (String) extracted.text;
-            }
+            updateFetchedText(ic);
+            updateSuggestionsFromText();
 
         }else{
             //onPressedCalled = false;
@@ -493,7 +478,7 @@ public class SoftKeyboard extends InputMethodService
     @Override
     public void onPress(int primaryCode) {
 
-        if(primaryCode >= 4608 && primaryCode < 4952) {
+        if(primaryCode >= FIDEL_START && primaryCode < FIDEL_END) {
             otherButtonsLocked = true;
             setPressedParameters(primaryCode);
             onPressedCalled = true;
@@ -589,6 +574,7 @@ public class SoftKeyboard extends InputMethodService
             MKeyboardView.setFidelPressed(false);
             MKeyboardView.setPressedFidelPrimaryCode(0);
             MKeyboardView.setWhichBoxTouched(100);
+            kv.clearVariantOverlay();
             otherButtonsLocked = false;
             onPressedCalled = false;
             InputConnection ic = getCurrentInputConnection();
@@ -612,10 +598,8 @@ public class SoftKeyboard extends InputMethodService
             //MKeyboardView.setWordStarted(true);
 
             //fetch string on edit text
-            ExtractedText extracted = ic.getExtractedText(new ExtractedTextRequest(), 0);
-            if(extracted != null){
-                MKeyboardView.fetchedEditTextValue = (String) extracted.text;
-            }
+            updateFetchedText(ic);
+            updateSuggestionsFromText();
 
         }
 
@@ -671,6 +655,31 @@ public class SoftKeyboard extends InputMethodService
 
         // 2. Return the parsed HTML as a Spanned object
         return Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY);
+    }
+
+    private void handleLayoutSwitch(int primaryCode) {
+        if (primaryCode == KEYCODE_SWITCH_TO_QWERTY) {
+            setKeyBoardLayout(MKeyboardView.qwertyLayoutName);
+        } else if (primaryCode == KEYCODE_SWITCH_TO_HAHU) {
+            setKeyBoardLayout(MKeyboardView.hahuLayoutName);
+        } else if (primaryCode == KEYCODE_SWITCH_TO_NUMBERS) {
+            setKeyBoardLayout(MKeyboardView.numbersLayoutName);
+        } else if (primaryCode == KEYCODE_TOGGLE_ALPHA) {
+            if (MKeyboardView.numbersLayoutName.equals(MKeyboardView.currentKeyboarrdLayout)) {
+                setKeyBoardLayout(lastAlphaLayout);
+            }
+        }
+    }
+
+    private void commitSpace(InputConnection ic) {
+        if (keyboardSettings != null && keyboardSettings.isAutoPickSuggestionOnSpace()) {
+            String suggestion = kv.getTopSuggestion();
+            if (suggestion != null && suggestion.length() > 0) {
+                pickSuggestionManually(suggestion);
+                return;
+            }
+        }
+        ic.commitText(" ", 1);
     }
 
 
@@ -1057,6 +1066,56 @@ public class SoftKeyboard extends InputMethodService
         }
     }
 
+    private void updateSuggestionsFromText() {
+        String allWords = MKeyboardView.fetchedEditTextValue;
+        boolean amharicMode = MKeyboardView.currentKeyboarrdLayout.equals(MKeyboardView.hahuLayoutName);
+        String filteredWords = sanitizeForSuggestions(allWords, amharicMode);
+        if (filteredWords == null || filteredWords.isEmpty() || filteredWords.endsWith(" ")) {
+            setSuggestions(new ArrayList<String>(), false, false);
+            setCandidatesViewShown(true);
+            return;
+        }
+        char lastChar = filteredWords.charAt(filteredWords.length() - 1);
+        int charCode = (int) lastChar;
+        if (!(charCode >= FIDEL_START && charCode < FIDEL_END) && !(charCode >= 65 && charCode <= 122)) {
+            setSuggestions(new ArrayList<String>(), false, false);
+            setCandidatesViewShown(true);
+            return;
+        }
+        String finalWord = kv.universalTrim(filteredWords);
+        if (finalWord.isEmpty()) {
+            setSuggestions(new ArrayList<String>(), false, false);
+            setCandidatesViewShown(true);
+            return;
+        }
+        List<String> suggestions = new ArrayList<>();
+        if (MKeyboardView.currentKeyboarrdLayout.equals(MKeyboardView.hahuLayoutName)) {
+            suggestions = kv.findClosestMatchAmharic(finalWord);
+        } else if (MKeyboardView.currentKeyboarrdLayout.equals(MKeyboardView.qwertyLayoutName)) {
+            suggestions = kv.findClosestMatchEnglish(finalWord);
+        }
+        setSuggestions(suggestions, false, true);
+        setCandidatesViewShown(true);
+    }
+
+    private String sanitizeForSuggestions(String text, boolean amharicMode) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        StringBuilder builder = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            boolean isAmharic = c >= FIDEL_START && c < FIDEL_END;
+            boolean isEnglish = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '\'';
+            if (amharicMode) {
+                builder.append(isAmharic ? c : ' ');
+            } else {
+                builder.append(isEnglish ? c : ' ');
+            }
+        }
+        return builder.toString();
+    }
+
     public void setSuggestions(List<String> suggestions, boolean completions,
                                boolean typedWordValid) {
         if (suggestions != null && suggestions.size() > 0) {
@@ -1084,10 +1143,13 @@ public class SoftKeyboard extends InputMethodService
         if(layoutName.equals(MKeyboardView.hahuLayoutName)){
             MKeyboardView.currentKeyboarrdLayout = MKeyboardView.hahuLayoutName;
             keyboard = new Keyboard(this, R.xml.hahu);
+            lastAlphaLayout = MKeyboardView.hahuLayoutName;
         }else if(layoutName.equals(MKeyboardView.qwertyLayoutName)){
             MKeyboardView.currentKeyboarrdLayout = MKeyboardView.qwertyLayoutName;
             keyboard = new Keyboard(this, R.xml.qwerty);
+            lastAlphaLayout = MKeyboardView.qwertyLayoutName;
         }else if(layoutName.equals(MKeyboardView.numbersLayoutName)){
+            MKeyboardView.currentKeyboarrdLayout = MKeyboardView.numbersLayoutName;
             keyboard = new Keyboard(this, R.xml.numbers);
         }
         kv.setKeyboard(keyboard);
@@ -1095,6 +1157,34 @@ public class SoftKeyboard extends InputMethodService
         retrieveKeys();
         if (currentTheme != null) {
             applyTheme(currentTheme);
+        }
+        updateNumbersToggleLabel();
+        updateSuggestionsFromText();
+    }
+
+    private void updateNumbersToggleLabel() {
+        if (keyboard == null || !MKeyboardView.numbersLayoutName.equals(MKeyboardView.currentKeyboarrdLayout)) {
+            return;
+        }
+        String label = MKeyboardView.hahuLayoutName.equals(lastAlphaLayout)
+                ? "ሀሁ"
+                : "ABC";
+        for (Keyboard.Key key : keyboard.getKeys()) {
+            if (key.codes != null && key.codes.length > 0 && key.codes[0] == KEYCODE_TOGGLE_ALPHA) {
+                key.label = label;
+                break;
+            }
+        }
+        kv.invalidateAllKeys();
+    }
+
+    private void updateFetchedText(InputConnection ic) {
+        if (ic == null) {
+            return;
+        }
+        ExtractedText extracted = ic.getExtractedText(new ExtractedTextRequest(), 0);
+        if (extracted != null) {
+            MKeyboardView.fetchedEditTextValue = (String) extracted.text;
         }
     }
 
@@ -1113,12 +1203,25 @@ public class SoftKeyboard extends InputMethodService
         keyboardSettings = KeyboardSettings.load(this);
         if (kv != null) {
             kv.setPreviewEnabled(keyboardSettings.isShowKeyPreview());
-            kv.setShowSuggestions(keyboardSettings.isShowSuggestions());
+            kv.setShowSuggestions(true);
         }
-        mPredictionOn = keyboardSettings.isShowSuggestions();
-        if (!keyboardSettings.isShowSuggestions()) {
-            setCandidatesViewShown(false);
+        mPredictionOn = true;
+        setCandidatesViewShown(true);
+        updateSuggestionsFromText();
+    }
+
+    private boolean isInputFromApp() {
+        EditorInfo info = getCurrentInputEditorInfo();
+        if (info == null || info.packageName == null) {
+            return false;
         }
+        return info.packageName.equals(getPackageName());
+    }
+
+    public void openSettingsApp() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 
     public void showThemePicker() {
@@ -1188,6 +1291,9 @@ public class SoftKeyboard extends InputMethodService
         if (mCapsLock) {
             mCapsLock = false;
             mLastShiftTime = 0;
+            if (kv != null) {
+                kv.setShiftHighlightState(false, false);
+            }
             applyShiftState(currentKeyboard, false);
             return;
         }
@@ -1196,12 +1302,19 @@ public class SoftKeyboard extends InputMethodService
         if (now - mLastShiftTime < CAPS_LOCK_TOGGLE_INTERVAL_MS) {
             mCapsLock = true;
             mLastShiftTime = 0;
+            if (kv != null) {
+                kv.setShiftHighlightState(true, true);
+            }
             applyShiftState(currentKeyboard, true);
             return;
         }
 
         mLastShiftTime = now;
-        applyShiftState(currentKeyboard, !isShifted);
+        boolean nextShift = !isShifted;
+        if (kv != null) {
+            kv.setShiftHighlightState(nextShift, false);
+        }
+        applyShiftState(currentKeyboard, nextShift);
     }
 
     private void maybeDisableOneShotShift(int primaryCode) {
@@ -1210,6 +1323,9 @@ public class SoftKeyboard extends InputMethodService
         }
         if (mCapsLock || !isShifted) {
             return;
+        }
+        if (kv != null) {
+            kv.setShiftHighlightState(false, false);
         }
         Keyboard currentKeyboard = kv.getKeyboard();
         if (currentKeyboard != null) {
@@ -1221,11 +1337,24 @@ public class SoftKeyboard extends InputMethodService
         isShifted = shifted;
         for (Keyboard.Key key : currentKeyboard.getKeys()) {
             if (key.codes[0] == -1) {
-                if (isShifted) {
-                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_solid);
+                Drawable icon = null;
+                if (mCapsLock) {
+                    icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_solid);
+                    if (icon != null) {
+                        icon.setAlpha(255);
+                    }
+                } else if (isShifted) {
+                    icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
+                    if (icon != null) {
+                        icon.setAlpha(255);
+                    }
                 } else {
-                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
+                    icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
+                    if (icon != null) {
+                        icon.setAlpha(140);
+                    }
                 }
+                key.icon = icon;
             }
             // Check for the 'ሀ'/'ሐ' key (Unicode 4608 and 4624)
             else if (key.codes[0] == 4608 || key.codes[0] == 4624) {

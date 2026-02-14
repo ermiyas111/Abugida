@@ -6,10 +6,6 @@
     android:keyHeight="50dp"
     android:keyTextColor="@color/colorAccent"
     >
-    <Row>
-        <Key android:codes="0" android:keyLabel=" " android:keyWidth="50%p" android:keyHeight="60dp" android:keyEdgeFlags="left"/>
-        <Key android:codes="0" android:keyLabel=" " android:keyWidth="50%p" android:keyHeight="60dp" android:keyEdgeFlags="right"/>
-    </Row>
     <!--<Row
         android:keyHeight="42dp">
         <Key android:codes="119" android:keyLabel="？" android:keyWidth="8%p" android:keyEdgeFlags="left"/>

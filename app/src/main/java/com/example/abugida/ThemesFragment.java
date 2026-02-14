@@ -20,6 +20,7 @@ import com.example.abogida.R;
 public class ThemesFragment extends Fragment {
 
     private LinearLayout themeContainer;
+    private LinearLayout previewCard;
     private LinearLayout previewPanel;
     private TextView previewTitle;
     private EditText previewInput;
@@ -38,6 +39,7 @@ public class ThemesFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         themeContainer = view.findViewById(R.id.theme_container);
+        previewCard = view.findViewById(R.id.theme_preview_card);
         previewPanel = view.findViewById(R.id.theme_preview_panel);
         previewTitle = view.findViewById(R.id.theme_preview_title);
         previewInput = view.findViewById(R.id.theme_preview_input);
@@ -53,6 +55,7 @@ public class ThemesFragment extends Fragment {
                 if (selectedTheme != null) {
                     ThemeManager.saveTheme(requireContext(), selectedTheme);
                     Intent intent = new Intent(ThemeManager.ACTION_THEME_CHANGED);
+                    intent.putExtra(ThemeManager.EXTRA_THEME_ID, selectedTheme.getId());
                     requireContext().sendBroadcast(intent);
                     updateApplyButton();
                     renderThemes();
@@ -98,6 +101,9 @@ public class ThemesFragment extends Fragment {
                     selectedTheme = theme;
                     applyPreviewTheme(theme);
                     updateApplyButton();
+                    Intent intent = new Intent(ThemeManager.ACTION_THEME_PREVIEW);
+                    intent.putExtra(ThemeManager.EXTRA_THEME_ID, theme.getId());
+                    requireContext().sendBroadcast(intent);
                 }
             });
 
@@ -111,6 +117,9 @@ public class ThemesFragment extends Fragment {
         }
         if (previewPanel != null) {
             previewPanel.setBackgroundColor(theme.getKeyboardBackground());
+        }
+        if (previewCard != null) {
+            previewCard.setBackgroundColor(theme.getKeyboardBackground());
         }
         if (previewTitle != null) {
             previewTitle.setTextColor(theme.getKeyTextPrimary());

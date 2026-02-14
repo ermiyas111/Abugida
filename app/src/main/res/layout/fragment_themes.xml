@@ -2,7 +2,8 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@color/ui_bg">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,46 +16,78 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/themes_title"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:paddingBottom="12dp" />
+            android:textColor="@color/ui_surface"
+            android:letterSpacing="0.04"
+            android:background="@drawable/bg_title_pill"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:layout_marginBottom="14dp" />
 
         <LinearLayout
-            android:id="@+id/theme_preview_panel"
+            android:id="@+id/theme_preview_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp"
-            android:layout_marginBottom="12dp">
+            android:background="@drawable/bg_card"
+            android:padding="14dp"
+            android:layout_marginBottom="16dp">
 
-            <TextView
-                android:id="@+id/theme_preview_title"
+            <LinearLayout
+                android:id="@+id/theme_preview_panel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Preview"
-                android:textStyle="bold"
-                android:paddingBottom="6dp" />
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:background="@drawable/bg_section">
 
-            <EditText
-                android:id="@+id/theme_preview_input"
+                <TextView
+                    android:id="@+id/theme_preview_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Preview"
+                    android:textStyle="bold"
+                    android:textColor="@color/ui_text_primary"
+                    android:paddingBottom="6dp" />
+
+                <EditText
+                    android:id="@+id/theme_preview_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Type here to preview"
+                    android:inputType="text"
+                    android:padding="10dp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/theme_apply_button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Type here to preview"
-                android:inputType="text"
-                android:padding="10dp" />
+                android:text="APPLY THEME"
+                android:layout_marginTop="12dp" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/theme_apply_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Apply Theme"
-            android:layout_marginBottom="16dp" />
-
         <LinearLayout
-            android:id="@+id/theme_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Available themes"
+                android:textStyle="bold"
+                android:textColor="@color/ui_text_primary"
+                android:paddingBottom="10dp" />
+
+            <LinearLayout
+                android:id="@+id/theme_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -1,13 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.example.abugida.MKeyboardView
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/keyboard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:keyPreviewLayout ="@layout/preview"
-    android:layout_alignParentBottom="true"
-    android:keyTextSize="25dp"
-    android:requiresFadingEdge="vertical"
-    android:background="@android:color/transparent"
+    android:background="@android:color/transparent">
 
-    />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:color/transparent">
+
+        <com.example.abugida.CandidateView
+            android:id="@+id/candidate_view"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_margin="0dp"
+            android:padding="4dp" />
+
+        <com.example.abugida.MKeyboardView
+            android:id="@+id/keyboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:keyPreviewLayout="@layout/preview"
+            android:layout_alignParentBottom="true"
+            android:keyTextSize="25dp"
+            android:requiresFadingEdge="vertical"
+            android:background="@android:color/transparent"
+            android:keyBackground="@android:color/transparent" />
+    </LinearLayout>
+
+    <com.example.abugida.VariantOverlayView
+        android:id="@+id/variant_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clickable="false"
+        android:focusable="false" />
+</FrameLayout>

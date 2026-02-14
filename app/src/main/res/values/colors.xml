@@ -14,4 +14,16 @@
     <color name="candidate_recommended">#FFE35900</color>
     <color name="candidate_other">#ff808080</color>
     <color name="candidate_background">#bbffffff</color>
+
+    <color name="ui_bg">#F6F3EF</color>
+    <color name="ui_surface">#FFFFFF</color>
+    <color name="ui_surface_alt">#EFE8E0</color>
+    <color name="ui_primary">#224F4A</color>
+    <color name="ui_secondary">#C45B1C</color>
+    <color name="ui_accent">#5C7CFA</color>
+    <color name="ui_text_primary">#1E1B16</color>
+    <color name="ui_text_secondary">#6B6258</color>
+    <color name="ui_divider">#E2D8CD</color>
+    <color name="ui_chip_bg">#EDE1D4</color>
+    <color name="ui_chip_text">#3B332A</color>
 </resources>

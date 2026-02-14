@@ -51,7 +51,7 @@
         <Key android:codes="-5" android:keyLabel="DEL" android:isRepeatable="true" android:keyEdgeFlags="right"/>
     </Row>
     <Row>
-        <Key android:codes="10003" android:keyLabel="abc" android:keyEdgeFlags="left"/>
+        <Key android:codes="10003" android:keyLabel="ABC" android:keyEdgeFlags="left"/>
         <Key android:codes="34" android:keyLabel="&quot;"/>
         <Key android:codes="32" android:keyLabel="SPACE" android:keyWidth="22.22%p" android:isRepeatable="true"/>
         <Key android:codes="42" android:keyLabel="*"/>

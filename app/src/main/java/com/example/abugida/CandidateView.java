@@ -51,15 +51,30 @@ public class CandidateView extends View {
     private int mTargetScrollX;
 
     private int mTotalWidth;
+    private Drawable mSettingsIcon;
+    private Rect mSettingsRect;
 
     private GestureDetector mGestureDetector;
     /**
      * Construct a CandidateView for showing suggested words for completion.
      * @param context
-     * @param attrs
      */
     public CandidateView(Context context) {
         super(context);
+        init(context);
+    }
+
+    public CandidateView(Context context, android.util.AttributeSet attrs) {
+        super(context, attrs);
+        init(context);
+    }
+
+    public CandidateView(Context context, android.util.AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+        init(context);
+    }
+
+    private void init(Context context) {
         mSelectionHighlight = context.getResources().getDrawable(
                 android.R.drawable.list_selector_background);
         mSelectionHighlight.setState(new int[] {
@@ -106,13 +121,17 @@ public class CandidateView extends View {
         setWillNotDraw(false);
         setHorizontalScrollBarEnabled(false);
         setVerticalScrollBarEnabled(false);
+
+        mSettingsIcon = context.getResources().getDrawable(android.R.drawable.ic_menu_manage);
+        mSettingsRect = new Rect();
+        mSuggestions = EMPTY_LIST;
     }
 
     public void applyTheme(KeyboardTheme theme) {
         if (theme == null) {
             return;
         }
-        setBackgroundColor(theme.getCandidateBackground());
+        setBackgroundColor(theme.getKeyboardBackground());
         mColorNormal = theme.getCandidateTextNormal();
         mColorRecommended = theme.getCandidateTextRecommended();
         mColorOther = theme.getCandidateTextOther();
@@ -159,7 +178,9 @@ public class CandidateView extends View {
             super.onDraw(canvas);
         }
         mTotalWidth = 0;
-        if (mSuggestions == null) return;
+        if (mSuggestions == null) {
+            mSuggestions = EMPTY_LIST;
+        }
 
         if (mBgPadding == null) {
             mBgPadding = new Rect(0, 0, 0, 0);
@@ -177,6 +198,11 @@ public class CandidateView extends View {
         final boolean scrolled = mScrolled;
         final boolean typedWordValid = mTypedWordValid;
         final int y = (int) (((height - mPaint.getTextSize()) / 2) - mPaint.ascent());
+        if (count == 0) {
+            drawSettingsIcon(canvas, height);
+            return;
+        }
+
         for (int i = 0; i < count; i++) {
             String suggestion = mSuggestions.get(i);
             float textWidth = paint.measureText(suggestion);
@@ -185,12 +211,6 @@ public class CandidateView extends View {
             mWordWidth[i] = wordWidth;
             paint.setColor(mColorNormal);
             if (touchX + scrollX >= x && touchX + scrollX < x + wordWidth && !scrolled) {
-                if (canvas != null) {
-                    canvas.translate(x, 0);
-                    mSelectionHighlight.setBounds(0, bgPadding.top, wordWidth, height);
-                    mSelectionHighlight.draw(canvas);
-                    canvas.translate(-x, 0);
-                }
                 mSelectedIndex = i;
             }
             if (canvas != null) {
@@ -201,9 +221,6 @@ public class CandidateView extends View {
                     paint.setColor(mColorOther);
                 }
                 canvas.drawText(suggestion, x + X_GAP, y, paint);
-                paint.setColor(mColorOther);
-                canvas.drawLine(x + wordWidth + 0.5f, bgPadding.top,
-                        x + wordWidth + 0.5f, height + 1, paint);
                 paint.setFakeBoldText(false);
             }
             x += wordWidth;
@@ -251,6 +268,7 @@ public class CandidateView extends View {
         mSuggestions = EMPTY_LIST;
         mTouchX = OUT_OF_BOUNDS;
         mSelectedIndex = -1;
+        mSettingsRect.setEmpty();
         invalidate();
     }
 
@@ -262,6 +280,12 @@ public class CandidateView extends View {
         int action = me.getAction();
         int x = (int) me.getX();
         int y = (int) me.getY();
+        if (!mSettingsRect.isEmpty() && mSettingsRect.contains(x, y)) {
+            if (action == MotionEvent.ACTION_UP && mService != null) {
+                mService.openSettingsApp();
+            }
+            return true;
+        }
         mTouchX = x;
         switch (action) {
             case MotionEvent.ACTION_DOWN:
@@ -309,6 +333,21 @@ public class CandidateView extends View {
     private void removeHighlight() {
         mTouchX = OUT_OF_BOUNDS;
         invalidate();
+    }
+
+    private void drawSettingsIcon(Canvas canvas, int height) {
+        if (canvas == null || mSettingsIcon == null) {
+            return;
+        }
+        int size = (int) (height * 0.6f);
+        int left = getPaddingLeft() + X_GAP;
+        int top = (height - size) / 2;
+        int right = left + size;
+        int bottom = top + size;
+        mSettingsRect.set(left, top, right, bottom);
+        mSettingsIcon.setBounds(mSettingsRect);
+        mSettingsIcon.setColorFilter(mColorRecommended, android.graphics.PorterDuff.Mode.SRC_IN);
+        mSettingsIcon.draw(canvas);
     }
 
 }

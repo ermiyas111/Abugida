@@ -20,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -36,7 +37,17 @@ public class MKeyboardView extends KeyboardView {
     private int keyTextSecondary;
     private int keyboardBackground;
     private int suggestionTextColor;
+    private int popupBackgroundPrimary;
+    private int popupBackgroundSecondary;
+        private int capsHighlightColor;
     private boolean showSuggestions = true;
+    private boolean capsLockActive = false;
+    private boolean shiftHighlightActive = false;
+    private int shiftHighlightColor;
+        private static final int[] CAPS_TOGGLE_CODES = new int[] {
+            4608, 4624, 4656, 4640, 4704, 4712,
+            4768, 4816, 4928, 4920, 4792, 4736
+        };
     public MKeyboardView(Context context, AttributeSet attrs) {
         super(context, attrs);
         Resources r = context.getResources();
@@ -48,6 +59,10 @@ public class MKeyboardView extends KeyboardView {
         keyTextSecondary = r.getColor(android.R.color.white);
         keyboardBackground = r.getColor(R.color.colorBlack);
         suggestionTextColor = Color.rgb(195, 195, 195);
+        popupBackgroundPrimary = adjustPopupColor(keyBackgroundPrimary);
+        popupBackgroundSecondary = adjustPopupColor(keyBackgroundSecondary);
+        capsHighlightColor = adjustCapsHighlightColor(keyBackgroundPrimary);
+        shiftHighlightColor = adjustShiftHighlightColor(keyBackgroundPrimary);
         loadDictionary();
     }
 
@@ -62,6 +77,10 @@ public class MKeyboardView extends KeyboardView {
         keyTextSecondary = r.getColor(android.R.color.white);
         keyboardBackground = r.getColor(R.color.colorBlack);
         suggestionTextColor = Color.rgb(195, 195, 195);
+        popupBackgroundPrimary = adjustPopupColor(keyBackgroundPrimary);
+        popupBackgroundSecondary = adjustPopupColor(keyBackgroundSecondary);
+        capsHighlightColor = adjustCapsHighlightColor(keyBackgroundPrimary);
+        shiftHighlightColor = adjustShiftHighlightColor(keyBackgroundPrimary);
         loadDictionary(); // Load the dictionary when the view is created
     }
 
@@ -89,78 +108,30 @@ public class MKeyboardView extends KeyboardView {
     private List<Rect> suggestionRects = new ArrayList<>();
     private List<String> currentSuggestions = new ArrayList<>();
     private List<String> commonAmharicWords;
-    private List<String> commonEnglishWords;
+    private List<EnglishWordEntry> commonEnglishWords;
+    private int maxEnglishFrequency = 1;
+    private VariantOverlayView variantOverlayView;
+    private int popupKeyX;
+    private int popupKeyY;
+    private int popupKeyWidth;
+    private int popupKeyHeight;
+    private int popupKeyCode;
+    private boolean popupKeyValid;
 
 
     private SoftKeyboard mService;
 
     @Override
     public void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
         setKeyColorForAmharicKeyboard(canvas);
+
+        if (variantOverlayView != null && fidelPressed) {
+            variantOverlayView.invalidate();
+        }
 
         List<Keyboard.Key> keys = getKeyboard().getKeys();
         for(Keyboard.Key key: keys){
-            if (key.codes[0] == pressedFidelPrimaryCode) {
-                if (fidelPressed) {
-                    Paint rectangle = new Paint();
-                    rectangle.setStrokeWidth(10);
-                    rectangle.setColor(Color.rgb(220, 220, 220));
-
-                    Paint paint = new Paint();
-                    paint.setTextSize(60);
-                    paint.setColor(Color.BLACK);
-
-                    int childPrimaryCode = key.codes[0] + whichChildLetter(whichBoxTouched);
-                    char code = (char) childPrimaryCode;
-
-                    boolean isTopRow = (key.y == 0);
-                    //canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 4), key.y - (2 * key.height) - (key.height / 3), paint);
-                    if (whichBoxTouched == 0) {
-                        if (isTopRow) {
-                            // Top row: Draw horizontally centered on the key, 1 key high
-                            canvas.drawRect(key.x - (key.width / 2), key.y, key.x + (key.width * 1.5f), key.y + key.height, rectangle);
-                            canvas.drawText(String.valueOf(code), key.x + (key.width / 3), key.y + (key.height * 0.6f), paint);
-                        } else {
-                            // Normal rows: Original vertical behavior
-                            canvas.drawRect(key.x - (key.width / 10), key.y - (2 * key.height), key.x + key.width + (key.width / 10), key.y, rectangle);
-                            canvas.drawText(String.valueOf(code), key.x - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
-                        }
-                    } else if (whichBoxTouched == 1) {
-                        if (isTopRow) {
-                            // Top row: Draw 2 keys wide to the right, 1 key high
-                            canvas.drawRect(key.x + key.width, key.y, key.x + (3 * key.width), key.y + key.height, rectangle);
-                            canvas.drawText(String.valueOf(code), key.x + (1.5f * key.width), key.y + (key.height * 0.6f), paint);
-                        } else {
-                            // Normal rows: Original vertical behavior
-                            canvas.drawRect(key.x + key.width - (key.width / 10), key.y - (2 * key.height), key.x + (2 * key.width) + (key.width / 10), key.y, rectangle);
-                            canvas.drawText(String.valueOf(code), key.x + key.width - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
-                        }
-                    } else if (whichBoxTouched == 2) {
-                        canvas.drawRect(key.x + key.width - (key.width/10), key.y - key.height, key.x + (2 * key.width) + (key.width/10), key.y + key.height, rectangle);
-                        canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 3), key.y - (key.height / 3), paint);
-                    } else if (whichBoxTouched == 3) {
-                        canvas.drawRect(key.x + key.width - (key.width/10), key.y, key.x + (2 * key.width) + (key.width/10), key.y + (2 * key.height), rectangle);
-                        canvas.drawText(String.valueOf(code), key.x + key.width - (key.width/10) + (key.width / 3), key.y + key.height - (key.height / 3), paint);
-                    } else if (whichBoxTouched == 4) {
-                        canvas.drawRect(key.x - (key.width/10), key.y, key.x + key.width + (key.width/10), key.y + (2 * key.height), rectangle);
-                        canvas.drawText(String.valueOf(code), key.x - (key.width/10) + (key.width / 3), key.y + key.height - (key.height / 3), paint);
-                    } else if (whichBoxTouched == 5) {
-                        canvas.drawRect(key.x - key.width - (key.width/10), key.y, key.x + (key.width/10), key.y + (2 * key.height), rectangle);
-                        canvas.drawText(String.valueOf(code), key.x - key.width - (key.width/10) + (key.width / 3), key.y + key.height - (key.height / 3), paint);
-                    } else if (whichBoxTouched == 6) {
-                        canvas.drawRect(key.x - key.width - (key.width/10), key.y - key.height, key.x + (key.width/10), key.y + key.height, rectangle);
-                        canvas.drawText(String.valueOf(code), key.x - key.width - (key.width/10) + (key.width / 3), key.y - (key.height / 3), paint);
-                    } else if (whichBoxTouched == 7) {
-                        canvas.drawRect(key.x - key.width - (key.width/10), key.y - (2 * key.height), key.x + (key.width/10), key.y, rectangle);
-                        canvas.drawText(String.valueOf(code), key.x - key.width - (key.width/10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
-                    } else if (whichBoxTouched == 100) {
-                        //canvas.drawRect(key.x - (key.width/10), key.y - key.height, key.x + key.width + (key.width/10), key.y + key.height, rectangle);
-                    }
-
-                }
-            }
+            drawPopupSelection(canvas, key);
         }
 
 
@@ -178,64 +149,9 @@ public class MKeyboardView extends KeyboardView {
 
         List<Keyboard.Key> keys2 = getKeyboard().getKeys();
         for(Keyboard.Key key: keys2){
-            if(fidelPressed){
-                if(!stopShowingSurroundingLetters) {
-                    if (key.pressed && key.codes[0] >= 4608 && key.codes[0] < 4952) {
-                        stopShowingSurroundingLetters = true;
-                        fidelPressed = true;
-                        tempKeyCode = key.codes[0];
-                        for (int i = 0; i < 8; i++) {
-                            Paint paint = new Paint();
-                            paint.setTextSize(40);
-                            paint.setColor(Color.BLACK);
-
-                            Paint rectangle = new Paint();
-                            rectangle.setStrokeWidth(10);
-                            int childPrimaryCode = key.codes[0] + whichChildLetter(i);
-                            char code = (char) childPrimaryCode;
-                            if (i == 0) {
-                                rectangle.setColor(colorMilky);
-                                canvas.drawRect(key.x, key.y - key.height, key.x + key.width, key.y, rectangle);
-                                canvas.drawText(String.valueOf(code), key.x + (key.width / 4), key.y - (key.height / 3), paint);
-                            } else if (i == 1) {
-                                rectangle.setColor(colorLightGrey);
-                                canvas.drawRect(key.x + key.width, key.y - key.height, key.x + (2 * key.width), key.y, rectangle);
-                                canvas.drawText(String.valueOf(code), key.x + key.width + (key.width / 4), key.y - (key.height / 3), paint);
-                            }
-                            if (i == 2) {
-                                rectangle.setColor(colorMilky);
-                                canvas.drawRect(key.x + key.width, key.y, key.x + (2 * key.width), key.y + key.height, rectangle);
-                                canvas.drawText(String.valueOf(code), key.x + key.width + (key.width / 4), (key.y + key.height) - (key.height / 3), paint);
-                            }
-                            if (i == 3) {
-                                rectangle.setColor(colorLightGrey);
-                                canvas.drawRect(key.x + key.width, key.y + key.height, key.x + (2 * key.width), key.y + (2 * key.height), rectangle);
-                                canvas.drawText(String.valueOf(code), key.x + key.width + (key.width / 4), (key.y + (2 * key.height)) - (key.height / 3), paint);
-                            }
-                            if (i == 4) {
-                                rectangle.setColor(colorMilky);
-                                canvas.drawRect(key.x, key.y + key.height, key.x + key.width, key.y + (2 * key.height), rectangle);
-                                canvas.drawText(String.valueOf(code), key.x + (key.width / 4), (key.y + (2 * key.height)) - (key.height / 3), paint);
-                            }
-                            if (i == 5) {
-                                rectangle.setColor(colorLightGrey);
-                                canvas.drawRect(key.x - key.width, key.y + key.height, key.x, key.y + (2 * key.height), rectangle);
-                                canvas.drawText(String.valueOf(code), (key.x - key.width) + (key.width / 4), (key.y + (2 * key.height)) - (key.height / 3), paint);
-                            }
-                            if (i == 6) {
-                                rectangle.setColor(colorMilky);
-                                canvas.drawRect(key.x - key.width, key.y, key.x, key.y + key.height, rectangle);
-                                canvas.drawText(String.valueOf(code), (key.x - key.width) + (key.width / 4), (key.y + key.height) - (key.height / 3), paint);
-                            }
-                            if (i == 7) {
-                                rectangle.setColor(colorLightGrey);
-                                canvas.drawRect(key.x - key.width, key.y - key.height, key.x, key.y, rectangle);
-                                canvas.drawText(String.valueOf(code), (key.x + (key.width / 4)) - key.width, key.y - (key.height / 3), paint);
-                            }
-                        }
-                    }
-                }
-            }else{
+            if (fidelPressed) {
+                drawSurroundingLetters(canvas, key);
+            } else {
                 stopShowingSurroundingLetters = false;
                 /*if(key.codes[0]==tempKeyCode){
                     for (int i = 0; i < 8; i++) {
@@ -298,11 +214,282 @@ public class MKeyboardView extends KeyboardView {
         canvas.drawRect(200, 108, 285, 400, rectangle);*/
         //canvas.drawRect(200, 109, 285, 400, rectangle);
 
-        if(showSuggestions && (currentKeyboarrdLayout.equals(hahuLayoutName) ||
-            currentKeyboarrdLayout.equals(qwertyLayoutName))){
-            displayWord(canvas);
+        // Suggestions bar removed.
+
+    }
+
+    private void drawPopupSelection(Canvas canvas, Keyboard.Key key) {
+        if (variantOverlayView != null) {
+            return;
+        }
+        if (key.codes[0] != pressedFidelPrimaryCode || !fidelPressed) {
+            return;
+        }
+        Paint rectangle = new Paint();
+        rectangle.setStrokeWidth(10);
+        rectangle.setColor(popupBackgroundPrimary);
+
+        Paint paint = new Paint();
+        paint.setTextSize(60);
+        paint.setColor(Color.BLACK);
+
+        int childPrimaryCode = key.codes[0] + whichChildLetter(whichBoxTouched);
+        char code = (char) childPrimaryCode;
+
+        boolean isTopRow = (key.y == 0);
+        if (whichBoxTouched == 0) {
+            if (isTopRow) {
+                canvas.drawRect(key.x - (key.width / 2), key.y, key.x + (key.width * 1.5f), key.y + key.height, rectangle);
+                canvas.drawText(String.valueOf(code), key.x + (key.width / 3), key.y + (key.height * 0.6f), paint);
+            } else {
+                canvas.drawRect(key.x - (key.width / 10), key.y - (2 * key.height), key.x + key.width + (key.width / 10), key.y, rectangle);
+                canvas.drawText(String.valueOf(code), key.x - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+            }
+        } else if (whichBoxTouched == 1) {
+            if (isTopRow) {
+                canvas.drawRect(key.x + key.width, key.y, key.x + (3 * key.width), key.y + key.height, rectangle);
+                canvas.drawText(String.valueOf(code), key.x + (1.5f * key.width), key.y + (key.height * 0.6f), paint);
+            } else {
+                canvas.drawRect(key.x + key.width - (key.width / 10), key.y - (2 * key.height), key.x + (2 * key.width) + (key.width / 10), key.y, rectangle);
+                canvas.drawText(String.valueOf(code), key.x + key.width - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+            }
+        } else if (whichBoxTouched == 2) {
+            canvas.drawRect(key.x + key.width - (key.width / 10), key.y - key.height, key.x + (2 * key.width) + (key.width / 10), key.y + key.height, rectangle);
+            canvas.drawText(String.valueOf(code), key.x + key.width - (key.width / 10) + (key.width / 3), key.y - (key.height / 3), paint);
+        } else if (whichBoxTouched == 3) {
+            canvas.drawRect(key.x + key.width - (key.width / 10), key.y, key.x + (2 * key.width) + (key.width / 10), key.y + (2 * key.height), rectangle);
+            canvas.drawText(String.valueOf(code), key.x + key.width - (key.width / 10) + (key.width / 3), key.y + key.height - (key.height / 3), paint);
+        } else if (whichBoxTouched == 4) {
+            canvas.drawRect(key.x - (key.width / 10), key.y, key.x + key.width + (key.width / 10), key.y + (2 * key.height), rectangle);
+            canvas.drawText(String.valueOf(code), key.x - (key.width / 10) + (key.width / 3), key.y + key.height - (key.height / 3), paint);
+        } else if (whichBoxTouched == 5) {
+            canvas.drawRect(key.x - key.width - (key.width / 10), key.y, key.x + (key.width / 10), key.y + (2 * key.height), rectangle);
+            canvas.drawText(String.valueOf(code), key.x - key.width - (key.width / 10) + (key.width / 3), key.y + key.height - (key.height / 3), paint);
+        } else if (whichBoxTouched == 6) {
+            canvas.drawRect(key.x - key.width - (key.width / 10), key.y - key.height, key.x + (key.width / 10), key.y + key.height, rectangle);
+            canvas.drawText(String.valueOf(code), key.x - key.width - (key.width / 10) + (key.width / 3), key.y - (key.height / 3), paint);
+        } else if (whichBoxTouched == 7) {
+            if (isTopRow) {
+                canvas.drawRect(key.x - key.width - (key.width / 10), key.y, key.x + (key.width / 10), key.y + key.height, rectangle);
+                canvas.drawText(String.valueOf(code), key.x - key.width - (key.width / 10) + (key.width / 3), key.y + (key.height * 0.6f), paint);
+            } else {
+                canvas.drawRect(key.x - key.width - (key.width / 10), key.y - (2 * key.height), key.x + (key.width / 10), key.y, rectangle);
+                canvas.drawText(String.valueOf(code), key.x - key.width - (key.width / 10) + (key.width / 3), key.y - key.height - (key.height / 3), paint);
+            }
+        }
+    }
+
+    private void drawSurroundingLetters(Canvas canvas, Keyboard.Key key) {
+        if (stopShowingSurroundingLetters || !key.pressed || key.codes[0] < 4608 || key.codes[0] >= 4952) {
+            return;
+        }
+        stopShowingSurroundingLetters = true;
+        fidelPressed = true;
+        tempKeyCode = key.codes[0];
+        updatePopupKey(key);
+        if (variantOverlayView != null) {
+            variantOverlayView.invalidate();
+            return;
+        }
+        boolean isTopRow = (key.y == 0);
+        for (int i = 0; i < 8; i++) {
+            Paint paint = new Paint();
+            paint.setTextSize(40);
+            paint.setColor(Color.BLACK);
+
+            Paint rectangle = new Paint();
+            rectangle.setStrokeWidth(10);
+            int childPrimaryCode = key.codes[0] + whichChildLetter(i);
+            char code = (char) childPrimaryCode;
+            if (i == 0) {
+                rectangle.setColor(popupBackgroundPrimary);
+                int top = isTopRow ? key.y : key.y - key.height;
+                int bottom = isTopRow ? key.y + key.height : key.y;
+                float textY = isTopRow ? key.y + (key.height * 0.6f) : key.y - (key.height / 3);
+                canvas.drawRect(key.x, top, key.x + key.width, bottom, rectangle);
+                canvas.drawText(String.valueOf(code), key.x + (key.width / 4), textY, paint);
+            } else if (i == 1) {
+                rectangle.setColor(popupBackgroundSecondary);
+                int top = isTopRow ? key.y : key.y - key.height;
+                int bottom = isTopRow ? key.y + key.height : key.y;
+                float textY = isTopRow ? key.y + (key.height * 0.6f) : key.y - (key.height / 3);
+                canvas.drawRect(key.x + key.width, top, key.x + (2 * key.width), bottom, rectangle);
+                canvas.drawText(String.valueOf(code), key.x + key.width + (key.width / 4), textY, paint);
+            }
+            if (i == 2) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(key.x + key.width, key.y, key.x + (2 * key.width), key.y + key.height, rectangle);
+                canvas.drawText(String.valueOf(code), key.x + key.width + (key.width / 4), (key.y + key.height) - (key.height / 3), paint);
+            }
+            if (i == 3) {
+                rectangle.setColor(popupBackgroundSecondary);
+                canvas.drawRect(key.x + key.width, key.y + key.height, key.x + (2 * key.width), key.y + (2 * key.height), rectangle);
+                canvas.drawText(String.valueOf(code), key.x + key.width + (key.width / 4), (key.y + (2 * key.height)) - (key.height / 3), paint);
+            }
+            if (i == 4) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(key.x, key.y + key.height, key.x + key.width, key.y + (2 * key.height), rectangle);
+                canvas.drawText(String.valueOf(code), key.x + (key.width / 4), (key.y + (2 * key.height)) - (key.height / 3), paint);
+            }
+            if (i == 5) {
+                rectangle.setColor(popupBackgroundSecondary);
+                canvas.drawRect(key.x - key.width, key.y + key.height, key.x, key.y + (2 * key.height), rectangle);
+                canvas.drawText(String.valueOf(code), (key.x - key.width) + (key.width / 4), (key.y + (2 * key.height)) - (key.height / 3), paint);
+            }
+            if (i == 6) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(key.x - key.width, key.y, key.x, key.y + key.height, rectangle);
+                canvas.drawText(String.valueOf(code), (key.x - key.width) + (key.width / 4), (key.y + key.height) - (key.height / 3), paint);
+            }
+            if (i == 7) {
+                rectangle.setColor(popupBackgroundSecondary);
+                int top = isTopRow ? key.y : key.y - key.height;
+                int bottom = isTopRow ? key.y + key.height : key.y;
+                float textY = isTopRow ? key.y + (key.height * 0.6f) : key.y - (key.height / 3);
+                canvas.drawRect(key.x - key.width, top, key.x, bottom, rectangle);
+                canvas.drawText(String.valueOf(code), (key.x + (key.width / 4)) - key.width, textY, paint);
+            }
+        }
+    }
+
+    public void setVariantOverlayView(VariantOverlayView overlayView) {
+        this.variantOverlayView = overlayView;
+    }
+
+    public void clearVariantOverlay() {
+        popupKeyValid = false;
+        if (variantOverlayView != null) {
+            variantOverlayView.invalidate();
+        }
+    }
+
+    public void drawVariantOverlay(Canvas canvas, int offsetY) {
+        if (!fidelPressed || !popupKeyValid) {
+            return;
+        }
+        drawSurroundingLettersOverlay(canvas, offsetY);
+        drawPopupSelectionOverlay(canvas, offsetY);
+    }
+
+    private void updatePopupKey(Keyboard.Key key) {
+        popupKeyX = key.x;
+        popupKeyY = key.y;
+        popupKeyWidth = key.width;
+        popupKeyHeight = key.height;
+        popupKeyCode = key.codes[0];
+        popupKeyValid = true;
+    }
+
+    private void drawSurroundingLettersOverlay(Canvas canvas, int offsetY) {
+        if (popupKeyCode < 4608 || popupKeyCode >= 4952) {
+            return;
         }
 
+        int keyX = popupKeyX;
+        int keyY = popupKeyY + offsetY;
+        int keyWidth = popupKeyWidth;
+        int keyHeight = popupKeyHeight;
+
+        for (int i = 0; i < 8; i++) {
+            Paint paint = new Paint();
+            paint.setTextSize(40);
+            paint.setColor(Color.BLACK);
+
+            Paint rectangle = new Paint();
+            rectangle.setStrokeWidth(10);
+            int childPrimaryCode = popupKeyCode + whichChildLetter(i);
+            char code = (char) childPrimaryCode;
+            if (i == 0) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(keyX, keyY - keyHeight, keyX + keyWidth, keyY, rectangle);
+                canvas.drawText(String.valueOf(code), keyX + (keyWidth / 4), keyY - (keyHeight / 3), paint);
+            } else if (i == 1) {
+                rectangle.setColor(popupBackgroundSecondary);
+                canvas.drawRect(keyX + keyWidth, keyY - keyHeight, keyX + (2 * keyWidth), keyY, rectangle);
+                canvas.drawText(String.valueOf(code), keyX + keyWidth + (keyWidth / 4), keyY - (keyHeight / 3), paint);
+            }
+            if (i == 2) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(keyX + keyWidth, keyY, keyX + (2 * keyWidth), keyY + keyHeight, rectangle);
+                canvas.drawText(String.valueOf(code), keyX + keyWidth + (keyWidth / 4), (keyY + keyHeight) - (keyHeight / 3), paint);
+            }
+            if (i == 3) {
+                rectangle.setColor(popupBackgroundSecondary);
+                canvas.drawRect(keyX + keyWidth, keyY + keyHeight, keyX + (2 * keyWidth), keyY + (2 * keyHeight), rectangle);
+                canvas.drawText(String.valueOf(code), keyX + keyWidth + (keyWidth / 4), (keyY + (2 * keyHeight)) - (keyHeight / 3), paint);
+            }
+            if (i == 4) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(keyX, keyY + keyHeight, keyX + keyWidth, keyY + (2 * keyHeight), rectangle);
+                canvas.drawText(String.valueOf(code), keyX + (keyWidth / 4), (keyY + (2 * keyHeight)) - (keyHeight / 3), paint);
+            }
+            if (i == 5) {
+                rectangle.setColor(popupBackgroundSecondary);
+                canvas.drawRect(keyX - keyWidth, keyY + keyHeight, keyX, keyY + (2 * keyHeight), rectangle);
+                canvas.drawText(String.valueOf(code), (keyX - keyWidth) + (keyWidth / 4), (keyY + (2 * keyHeight)) - (keyHeight / 3), paint);
+            }
+            if (i == 6) {
+                rectangle.setColor(popupBackgroundPrimary);
+                canvas.drawRect(keyX - keyWidth, keyY, keyX, keyY + keyHeight, rectangle);
+                canvas.drawText(String.valueOf(code), (keyX - keyWidth) + (keyWidth / 4), (keyY + keyHeight) - (keyHeight / 3), paint);
+            }
+            if (i == 7) {
+                rectangle.setColor(popupBackgroundSecondary);
+                canvas.drawRect(keyX - keyWidth, keyY - keyHeight, keyX, keyY, rectangle);
+                canvas.drawText(String.valueOf(code), (keyX + (keyWidth / 4)) - keyWidth, keyY - (keyHeight / 3), paint);
+            }
+        }
+    }
+
+    private void drawPopupSelectionOverlay(Canvas canvas, int offsetY) {
+        if (popupKeyCode != pressedFidelPrimaryCode || !fidelPressed) {
+            return;
+        }
+        if (whichBoxTouched == 100) {
+            return;
+        }
+
+        int keyX = popupKeyX;
+        int keyY = popupKeyY + offsetY;
+        int keyWidth = popupKeyWidth;
+        int keyHeight = popupKeyHeight;
+
+        Paint rectangle = new Paint();
+        rectangle.setStrokeWidth(10);
+        rectangle.setColor(popupBackgroundPrimary);
+
+        Paint paint = new Paint();
+        paint.setTextSize(60);
+        paint.setColor(Color.BLACK);
+
+        int childPrimaryCode = popupKeyCode + whichChildLetter(whichBoxTouched);
+        char code = (char) childPrimaryCode;
+
+        if (whichBoxTouched == 0) {
+            canvas.drawRect(keyX - (keyWidth / 10), keyY - (2 * keyHeight), keyX + keyWidth + (keyWidth / 10), keyY, rectangle);
+            canvas.drawText(String.valueOf(code), keyX - (keyWidth / 10) + (keyWidth / 3), keyY - keyHeight - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 1) {
+            canvas.drawRect(keyX + keyWidth - (keyWidth / 10), keyY - (2 * keyHeight), keyX + (2 * keyWidth) + (keyWidth / 10), keyY, rectangle);
+            canvas.drawText(String.valueOf(code), keyX + keyWidth - (keyWidth / 10) + (keyWidth / 3), keyY - keyHeight - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 2) {
+            canvas.drawRect(keyX + keyWidth - (keyWidth / 10), keyY - keyHeight, keyX + (2 * keyWidth) + (keyWidth / 10), keyY + keyHeight, rectangle);
+            canvas.drawText(String.valueOf(code), keyX + keyWidth - (keyWidth / 10) + (keyWidth / 3), keyY - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 3) {
+            canvas.drawRect(keyX + keyWidth - (keyWidth / 10), keyY, keyX + (2 * keyWidth) + (keyWidth / 10), keyY + (2 * keyHeight), rectangle);
+            canvas.drawText(String.valueOf(code), keyX + keyWidth - (keyWidth / 10) + (keyWidth / 3), keyY + keyHeight - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 4) {
+            canvas.drawRect(keyX - (keyWidth / 10), keyY, keyX + keyWidth + (keyWidth / 10), keyY + (2 * keyHeight), rectangle);
+            canvas.drawText(String.valueOf(code), keyX - (keyWidth / 10) + (keyWidth / 3), keyY + keyHeight - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 5) {
+            canvas.drawRect(keyX - keyWidth - (keyWidth / 10), keyY, keyX + (keyWidth / 10), keyY + (2 * keyHeight), rectangle);
+            canvas.drawText(String.valueOf(code), keyX - keyWidth - (keyWidth / 10) + (keyWidth / 3), keyY + keyHeight - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 6) {
+            canvas.drawRect(keyX - keyWidth - (keyWidth / 10), keyY - keyHeight, keyX + (keyWidth / 10), keyY + keyHeight, rectangle);
+            canvas.drawText(String.valueOf(code), keyX - keyWidth - (keyWidth / 10) + (keyWidth / 3), keyY - (keyHeight / 3), paint);
+        } else if (whichBoxTouched == 7) {
+            canvas.drawRect(keyX - keyWidth - (keyWidth / 10), keyY - (2 * keyHeight), keyX + (keyWidth / 10), keyY, rectangle);
+            canvas.drawText(String.valueOf(code), keyX - keyWidth - (keyWidth / 10) + (keyWidth / 3), keyY - keyHeight - (keyHeight / 3), paint);
+        }
     }
 
     public void setService(SoftKeyboard service) {
@@ -321,7 +508,22 @@ public class MKeyboardView extends KeyboardView {
         suggestionTextColor = theme.getSuggestionTextColor();
         colorMilky = theme.getKeyBackgroundPrimary();
         colorLightGrey = theme.getKeyBackgroundSecondary();
+        popupBackgroundPrimary = adjustPopupColor(keyBackgroundPrimary);
+        popupBackgroundSecondary = adjustPopupColor(keyBackgroundSecondary);
+        capsHighlightColor = adjustCapsHighlightColor(keyBackgroundPrimary);
+        shiftHighlightColor = adjustShiftHighlightColor(keyBackgroundPrimary);
         setBackgroundColor(keyboardBackground);
+        invalidate();
+    }
+
+    public void setCapsLockActive(boolean capsLockActive) {
+        this.capsLockActive = capsLockActive;
+        invalidate();
+    }
+
+    public void setShiftHighlightState(boolean shiftHighlightActive, boolean capsLockActive) {
+        this.shiftHighlightActive = shiftHighlightActive;
+        this.capsLockActive = capsLockActive;
         invalidate();
     }
 
@@ -379,7 +581,7 @@ public class MKeyboardView extends KeyboardView {
         commonAmharicWords = new ArrayList<>();
         // Get the resource from the raw folder
         InputStream inputStreamAmharic = getContext().getResources().openRawResource(R.raw.amharic_words);
-        BufferedReader readerAmharic = new BufferedReader(new InputStreamReader(inputStreamAmharic));
+        BufferedReader readerAmharic = new BufferedReader(new InputStreamReader(inputStreamAmharic, StandardCharsets.UTF_8));
 
         try {
             String line;
@@ -400,18 +602,37 @@ public class MKeyboardView extends KeyboardView {
             }
         }
 
-        // Load English Dictionary
+        // Load English Dictionary (word + frequency)
         commonEnglishWords = new ArrayList<>();
+        maxEnglishFrequency = 1;
         // Get the resource from the raw folder
         InputStream inputStreamEnglish = getContext().getResources().openRawResource(R.raw.english_words);
-        BufferedReader readerEnglish = new BufferedReader(new InputStreamReader(inputStreamEnglish));
+        BufferedReader readerEnglish = new BufferedReader(new InputStreamReader(inputStreamEnglish, StandardCharsets.UTF_8));
 
         try {
             String line;
             while ((line = readerEnglish.readLine()) != null) {
                 // Add each word from the file to our list
-                if (!line.trim().isEmpty()) {
-                    commonEnglishWords.add(line.trim());
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                String[] parts = trimmed.split("\\s+");
+                if (parts.length == 0) {
+                    continue;
+                }
+                String word = parts[0].toLowerCase();
+                int frequency = 0;
+                if (parts.length > 1) {
+                    try {
+                        frequency = Integer.parseInt(parts[1]);
+                    } catch (NumberFormatException e) {
+                        frequency = 0;
+                    }
+                }
+                commonEnglishWords.add(new EnglishWordEntry(word, frequency));
+                if (frequency > maxEnglishFrequency) {
+                    maxEnglishFrequency = frequency;
                 }
             }
         } catch (IOException e) {
@@ -636,6 +857,13 @@ public class MKeyboardView extends KeyboardView {
                     || key.codes[0] == 32;
 
             int keyBackground = isPrimaryKey ? keyBackgroundPrimary : keyBackgroundSecondary;
+            if (currentKeyboarrdLayout.equals(hahuLayoutName) && isCapsToggleKey(key.codes[0])) {
+                if (capsLockActive) {
+                    keyBackground = capsHighlightColor;
+                } else if (shiftHighlightActive) {
+                    keyBackground = shiftHighlightColor;
+                }
+            }
             int keyTextColor = isPrimaryKey ? keyTextPrimary : keyTextSecondary;
 
             float inset = dpToPx(2.5f);
@@ -657,6 +885,52 @@ public class MKeyboardView extends KeyboardView {
 
     private float dpToPx(float dp) {
         return dp * getResources().getDisplayMetrics().density;
+    }
+
+    private int adjustPopupColor(int baseColor) {
+        double luminance = (0.299 * Color.red(baseColor)
+                + 0.587 * Color.green(baseColor)
+                + 0.114 * Color.blue(baseColor)) / 255.0;
+        if (luminance > 0.5) {
+            return shadeColor(baseColor, 0.75f);
+        }
+        return shadeColor(baseColor, 1.25f);
+    }
+
+    private int shadeColor(int color, float factor) {
+        int red = Math.min(255, Math.max(0, Math.round(Color.red(color) * factor)));
+        int green = Math.min(255, Math.max(0, Math.round(Color.green(color) * factor)));
+        int blue = Math.min(255, Math.max(0, Math.round(Color.blue(color) * factor)));
+        return Color.rgb(red, green, blue);
+    }
+
+    private int adjustCapsHighlightColor(int baseColor) {
+        double luminance = (0.299 * Color.red(baseColor)
+                + 0.587 * Color.green(baseColor)
+                + 0.114 * Color.blue(baseColor)) / 255.0;
+        if (luminance > 0.5) {
+            return shadeColor(baseColor, 0.7f);
+        }
+        return shadeColor(baseColor, 1.3f);
+    }
+
+    private int adjustShiftHighlightColor(int baseColor) {
+        double luminance = (0.299 * Color.red(baseColor)
+                + 0.587 * Color.green(baseColor)
+                + 0.114 * Color.blue(baseColor)) / 255.0;
+        if (luminance > 0.5) {
+            return shadeColor(baseColor, 0.85f);
+        }
+        return shadeColor(baseColor, 1.15f);
+    }
+
+    private boolean isCapsToggleKey(int code) {
+        for (int toggleCode : CAPS_TOGGLE_CODES) {
+            if (toggleCode == code) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void setKeyText(Canvas canvas, Keyboard.Key key, int keyTextColor) {
@@ -707,25 +981,84 @@ public class MKeyboardView extends KeyboardView {
         }
 
         inputWord = inputWord.trim().toLowerCase();
+        int inputLength = inputWord.length();
+        char firstChar = inputWord.charAt(0);
+
+        // Short inputs should prioritize prefix matches for stability.
+        if (inputLength <= 2) {
+            List<String> prefixMatches = new ArrayList<>();
+            for (EnglishWordEntry entry : commonEnglishWords) {
+                String lowerWord = entry.word;
+                if (lowerWord.startsWith(inputWord)) {
+                    prefixMatches.add(entry.word);
+                    if (prefixMatches.size() >= 15) {
+                        break;
+                    }
+                }
+            }
+            if (!prefixMatches.isEmpty()) {
+                return prefixMatches;
+            }
+        }
+
         String inputSoundex = getSoundex(inputWord);
 
         List<WordDistance> wordScores = new ArrayList<>();
 
-        for (String word : commonEnglishWords) {
-            String lowerWord = word.toLowerCase();
+        for (EnglishWordEntry entry : commonEnglishWords) {
+            String lowerWord = entry.word;
 
-            // 1. Levenshtein Score (Lower is better)
-            double levScore = levenshteinDistance(inputWord, lowerWord) * 1.0;
+            int lengthDiff = Math.abs(lowerWord.length() - inputLength);
+            boolean startsWithInput = lowerWord.startsWith(inputWord);
+            boolean containsInput = !startsWithInput && lowerWord.contains(inputWord);
+            boolean soundexMatch = getSoundex(lowerWord).equals(inputSoundex);
 
-            // 2. Phonetic Score (Bonus if they sound the same)
-            double phoneticScore = getSoundex(lowerWord).equals(inputSoundex) ? -1.5 : 0.0;
+            if (inputLength >= 3) {
+                if (lengthDiff > 4 && !startsWithInput) {
+                    continue;
+                }
+                if (lowerWord.charAt(0) != firstChar && !startsWithInput && !soundexMatch) {
+                    continue;
+                }
+            }
 
-            // 3. Prefix Bonus (Strongly favor words that start the same)
-            double prefixBonus = lowerWord.startsWith(inputWord) ? -2.0 : 0.0;
+            // 1. Damerau-Levenshtein handles common swaps better than plain edit distance.
+            double levScore = damerauLevenshteinDistance(inputWord, lowerWord);
 
-            double finalScore = levScore + phoneticScore + prefixBonus;
+            // 2. Phonetic Score (bonus if they sound the same)
+            double phoneticScore = soundexMatch ? -0.6 : 0.0;
 
-            wordScores.add(new WordDistance(word, finalScore));
+            // 3. Prefix + containment bonus (strongly favor words that start the same)
+            double prefixBonus = 0.0;
+            if (startsWithInput) {
+                prefixBonus = -(2.8 + (inputLength * 0.2));
+            } else if (containsInput) {
+                prefixBonus = -0.6;
+            }
+
+            // 4. Light penalty for first-letter mismatch
+            double firstLetterPenalty = 0.0;
+            if (!lowerWord.isEmpty() && lowerWord.charAt(0) != firstChar) {
+                firstLetterPenalty = 0.4;
+            }
+
+            // 5. Length penalty to avoid overly long candidates
+            double lengthPenalty = lengthDiff * 0.12;
+
+            // 6. Frequency bonus (higher frequency => better ranking)
+            double frequencyBonus = 0.0;
+            if (entry.frequency > 0 && maxEnglishFrequency > 0) {
+                double freqNorm = Math.log10(entry.frequency) / Math.log10(maxEnglishFrequency);
+                frequencyBonus = -1.2 * freqNorm;
+            }
+
+            // 7. Exact match bonus
+            double exactBonus = lowerWord.equals(inputWord) ? -6.0 : 0.0;
+
+            double finalScore = levScore + phoneticScore + prefixBonus + firstLetterPenalty
+                    + lengthPenalty + frequencyBonus + exactBonus;
+
+            wordScores.add(new WordDistance(entry.word, finalScore));
         }
 
         // Sort by score ascending
@@ -787,21 +1120,62 @@ public class MKeyboardView extends KeyboardView {
         }
 
         inputWord = inputWord.trim();
+        int inputLength = inputWord.length();
+        int inputFamily = getAmharicFamilyIndex(inputWord.charAt(0));
+
+        if (inputLength <= 1) {
+            List<String> prefixMatches = new ArrayList<>();
+            for (String word : commonAmharicWords) {
+                if (word.startsWith(inputWord)) {
+                    prefixMatches.add(word);
+                    if (prefixMatches.size() >= 15) {
+                        break;
+                    }
+                }
+            }
+            if (!prefixMatches.isEmpty()) {
+                return prefixMatches;
+            }
+        }
 
         // A list to hold words and their calculated scores.
         List<WordDistance> wordScores = new ArrayList<>();
 
         for (String word : commonAmharicWords) {
+            if (word == null || word.isEmpty()) {
+                continue;
+            }
+
+            int lengthDiff = Math.abs(word.length() - inputLength);
+            boolean startsWithInput = word.startsWith(inputWord);
+            boolean containsInput = !startsWithInput && word.contains(inputWord);
+
+            if (inputLength >= 2 && lengthDiff > 4 && !startsWithInput) {
+                continue;
+            }
+
             // Calculate the score for each metric
-            double levenshteinScore = levenshteinDistance(inputWord, word) * WEIGHT_LEVENSHTEIN;
+            double levenshteinScore = damerauLevenshteinDistance(inputWord, word) * WEIGHT_LEVENSHTEIN;
             double abugidaScore = abugidaProximityDistance(inputWord, word) * WEIGHT_ABUGIDA;
 
-            double finalScore = levenshteinScore + abugidaScore;
-
-            // Apply a large bonus if the dictionary word starts with the input word
-            if (word.startsWith(inputWord)) {
-                finalScore += PREFIX_BONUS;
+            double prefixBonus = 0.0;
+            if (startsWithInput) {
+                prefixBonus = -(2.8 + (inputLength * 0.2));
+            } else if (containsInput) {
+                prefixBonus = -0.6;
             }
+
+            double familyPenalty = 0.0;
+            int candidateFamily = getAmharicFamilyIndex(word.charAt(0));
+            if (inputFamily != -1 && candidateFamily != -1 && inputFamily != candidateFamily) {
+                familyPenalty = 0.6;
+            }
+
+            double lengthPenalty = lengthDiff * 0.12;
+            double exactBonus = word.equals(inputWord) ? -6.0 : 0.0;
+
+            double finalScore = levenshteinScore + abugidaScore + prefixBonus
+                    + familyPenalty + lengthPenalty + exactBonus;
 
             wordScores.add(new WordDistance(word, finalScore));
         }
@@ -839,16 +1213,23 @@ public class MKeyboardView extends KeyboardView {
             }
 
             // Check if they belong to the same family
-            int base1 = (c1 - 4608) / 8; // Integer division gives the family index
-            int base2 = (c2 - 4608) / 8;
+            int base1 = getAmharicFamilyIndex(c1);
+            int base2 = getAmharicFamilyIndex(c2);
 
-            if (base1 == base2) {
+            if (base1 != -1 && base2 != -1 && base1 == base2) {
                 totalDistance += 0.1; // Very small penalty for being in the same family
             } else {
                 totalDistance += 1.0; // Full penalty for being different families
             }
         }
         return totalDistance;
+    }
+
+    private int getAmharicFamilyIndex(char c) {
+        if (c < 4608 || c > 4952) {
+            return -1;
+        }
+        return (c - 4608) / 8;
     }
 
 
@@ -860,6 +1241,16 @@ public class MKeyboardView extends KeyboardView {
         WordDistance(String word, double distance) {
             this.word = word;
             this.distance = distance;
+        }
+    }
+
+    private static class EnglishWordEntry {
+        String word;
+        int frequency;
+
+        EnglishWordEntry(String word, int frequency) {
+            this.word = word;
+            this.frequency = frequency;
         }
     }
 
@@ -899,6 +1290,48 @@ public class MKeyboardView extends KeyboardView {
                             dp[i - 1][j - 1]
                     );
                 }
+            }
+        }
+
+        return dp[len1][len2];
+    }
+
+    private int damerauLevenshteinDistance(String s1, String s2) {
+        if (s1 == null || s2 == null) {
+            return Integer.MAX_VALUE;
+        }
+
+        int len1 = s1.length();
+        int len2 = s2.length();
+
+        if (len1 == 0) return len2;
+        if (len2 == 0) return len1;
+
+        int[][] dp = new int[len1 + 1][len2 + 1];
+
+        for (int i = 0; i <= len1; i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= len2; j++) {
+            dp[0][j] = j;
+        }
+
+        for (int i = 1; i <= len1; i++) {
+            for (int j = 1; j <= len2; j++) {
+                int cost = s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1;
+                int deletion = dp[i - 1][j] + 1;
+                int insertion = dp[i][j - 1] + 1;
+                int substitution = dp[i - 1][j - 1] + cost;
+
+                int value = Math.min(Math.min(deletion, insertion), substitution);
+
+                if (i > 1 && j > 1
+                        && s1.charAt(i - 1) == s2.charAt(j - 2)
+                        && s1.charAt(i - 2) == s2.charAt(j - 1)) {
+                    value = Math.min(value, dp[i - 2][j - 2] + cost);
+                }
+
+                dp[i][j] = value;
             }
         }
 
