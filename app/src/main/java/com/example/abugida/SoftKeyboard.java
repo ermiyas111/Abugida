@@ -103,6 +103,8 @@ public class SoftKeyboard extends InputMethodService
     private long mLastShiftTime;
     private long mMetaState;
 
+    private static final long CAPS_LOCK_TOGGLE_INTERVAL_MS = 800;
+
     private Keyboard mSymbolsKeyboard;
     private Keyboard mSymbolsShiftedKeyboard;
     private Keyboard mQwertyKeyboard;
@@ -385,101 +387,7 @@ public class SoftKeyboard extends InputMethodService
                     break;
                 // ~ line 440
                 case Keyboard.KEYCODE_SHIFT:
-                    // Toggle the shift state flag
-                    isShifted = !isShifted;
-
-                    // Find and update the specific keys
-                    for (Keyboard.Key key : currentKeyboard.getKeys()) {
-                        if (key.codes[0] == -1) {
-                            if (isShifted) {
-                                key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_solid);
-                            } else {
-                                key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
-                            }
-                        }
-                        // Check for the 'ሀ'/'ሐ' key (Unicode 4608 and 4624)
-                        else if (key.codes[0] == 4608 || key.codes[0] == 4624) {
-                            if (isShifted) {
-                                key.label = "ሐ";
-                                key.codes[0] = 4624;
-                            } else {
-                                key.label = createStyledLabel("ሀ", "ሐ");;
-                                key.codes[0] = 4608;
-                            }
-                        }
-                        // Check for the 'ሰ'/'ሠ' key (Unicode 4656 and 4640)
-                        else if (key.codes[0] == 4656 || key.codes[0] == 4640) {
-                            if (isShifted) {
-                                key.label = "ሠ";
-                                key.codes[0] = 4640;
-                            } else {
-                                key.label = createStyledLabel("ሰ", "ሠ");
-                                key.codes[0] = 4656;
-                            }
-                        }
-
-                        // Check for the 'በ'/'ቨ' key (Unicode 4704 and 4712)
-                        else if (key.codes[0] == 4704 || key.codes[0] == 4712) {
-                            if (isShifted) {
-                                key.label = "ቨ";
-                                key.codes[0] = 4712;
-                            } else {
-                                key.label = createStyledLabel("በ", "ቨ");
-                                key.codes[0] = 4704;
-                            }
-                        }
-
-                        // Check for the 'አ'/'ዐ' key (Unicode 4768 and 4816)
-                        else if (key.codes[0] == 4768 || key.codes[0] == 4816) {
-                            if (isShifted) {
-                                key.label = "ዐ";
-                                key.codes[0] = 4816;
-                            } else {
-                                key.label = createStyledLabel("አ", "ዐ");
-                                key.codes[0] = 4768;
-                            }
-                        }
-
-                        // Check for the 'ፀ'/'ጸ' key (Unicode 4928 and 4920)
-                        else if (key.codes[0] == 4928 || key.codes[0] == 4920) {
-                            if (isShifted) {
-                                key.label = "ጸ";
-                                key.codes[0] = 4920;
-                            } else {
-                                key.label = createStyledLabel("ፀ", "ጸ");
-                                key.codes[0] = 4928;
-                            }
-                        }
-
-                        // Check for the 'ኸ'/'ኀ' key (Unicode 4736 and 4784)
-                        else if (key.codes[0] == 4736 || key.codes[0] == 4792) {
-                            if (isShifted) {
-                                key.label = "ኀ";
-                                key.codes[0] = 4736;
-                            } else {
-                                key.label = createStyledLabel("ኸ", "ኀ");
-                                key.codes[0] = 4792;
-                            }
-                        }
-
-                        // Check for standard English letters (a-z and A-Z)
-                        else if (key.codes[0] >= 65 && key.codes[0] <= 122) {
-                            String label = key.label.toString();
-                            if (isShifted) {
-                                key.label = label.toUpperCase();
-                                key.codes[0] = Character.toUpperCase(key.codes[0]);
-                            } else {
-                                key.label = label.toLowerCase();
-                                key.codes[0] = Character.toLowerCase(key.codes[0]);
-                            }
-                        }
-                    }
-
-                    // This tells the keyboard that the shift state has changed for the icon
-                    currentKeyboard.setShifted(isShifted);
-
-                    // This forces the keyboard to redraw all keys with the new labels
-                    kv.invalidateAllKeys();
+                    handleShiftPress(currentKeyboard);
                     break;
 
                 case Keyboard.KEYCODE_DONE:
@@ -507,20 +415,6 @@ public class SoftKeyboard extends InputMethodService
                     if (primaryCode < 4608 || primaryCode >= 4952) {
                         char code = (char) primaryCode;
                         ic.commitText(String.valueOf(code), 1);
-                        if (primaryCode >= 65 && primaryCode <= 90 && currentKeyboard.isShifted()){
-                            isShifted = !isShifted;
-                            for (Keyboard.Key key : currentKeyboard.getKeys()) {
-                                if (key.codes[0] == -1) {
-                                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
-                                }
-                                else if (key.codes[0] >= 65 && key.codes[0] <= 90) {
-                                    String label = key.label.toString();
-                                    key.label = label.toLowerCase();
-                                    key.codes[0] = Character.toLowerCase(key.codes[0]);
-                                }
-                            }
-                            currentKeyboard.setShifted(isShifted);
-                        }
                     }
                     /*char code = (char)primaryCode;
                     if(Character.isLetter(code) && caps){
@@ -528,6 +422,8 @@ public class SoftKeyboard extends InputMethodService
                     }
                     ic.commitText(String.valueOf(code),1);*/
             }
+
+            maybeDisableOneShotShift(primaryCode);
 
             //fetch string on edit text
             ExtractedText extracted = ic.getExtractedText(new ExtractedTextRequest(), 0);
@@ -657,6 +553,7 @@ public class SoftKeyboard extends InputMethodService
                 ic.commitText(String.valueOf(code), 1);
 
                 //MKeyboardView.getWordFormationList().add(childPrimaryCode);
+                maybeDisableOneShotShift(primaryCode);
             }
 
             //MKeyboardView.setWordStarted(true);
@@ -666,6 +563,7 @@ public class SoftKeyboard extends InputMethodService
             if(extracted != null){
                 MKeyboardView.fetchedEditTextValue = (String) extracted.text;
             }
+
         }
 
 
@@ -1136,5 +1034,133 @@ public class SoftKeyboard extends InputMethodService
         kv.setKeyboard(keyboard);
         kv.setOnKeyboardActionListener(this);
         retrieveKeys();
+    }
+
+    private void handleShiftPress(Keyboard currentKeyboard) {
+        if (currentKeyboard == null) {
+            return;
+        }
+        if (mCapsLock) {
+            mCapsLock = false;
+            mLastShiftTime = 0;
+            applyShiftState(currentKeyboard, false);
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (now - mLastShiftTime < CAPS_LOCK_TOGGLE_INTERVAL_MS) {
+            mCapsLock = true;
+            mLastShiftTime = 0;
+            applyShiftState(currentKeyboard, true);
+            return;
+        }
+
+        mLastShiftTime = now;
+        applyShiftState(currentKeyboard, !isShifted);
+    }
+
+    private void maybeDisableOneShotShift(int primaryCode) {
+        if (primaryCode == Keyboard.KEYCODE_SHIFT) {
+            return;
+        }
+        if (mCapsLock || !isShifted) {
+            return;
+        }
+        Keyboard currentKeyboard = kv.getKeyboard();
+        if (currentKeyboard != null) {
+            applyShiftState(currentKeyboard, false);
+        }
+    }
+
+    private void applyShiftState(Keyboard currentKeyboard, boolean shifted) {
+        isShifted = shifted;
+        for (Keyboard.Key key : currentKeyboard.getKeys()) {
+            if (key.codes[0] == -1) {
+                if (isShifted) {
+                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_solid);
+                } else {
+                    key.icon = ContextCompat.getDrawable(this, R.drawable.ic_custom_shift_hollow);
+                }
+            }
+            // Check for the 'ሀ'/'ሐ' key (Unicode 4608 and 4624)
+            else if (key.codes[0] == 4608 || key.codes[0] == 4624) {
+                if (isShifted) {
+                    key.label = "ሐ";
+                    key.codes[0] = 4624;
+                } else {
+                    key.label = createStyledLabel("ሀ", "ሐ");
+                    key.codes[0] = 4608;
+                }
+            }
+            // Check for the 'ሰ'/'ሠ' key (Unicode 4656 and 4640)
+            else if (key.codes[0] == 4656 || key.codes[0] == 4640) {
+                if (isShifted) {
+                    key.label = "ሠ";
+                    key.codes[0] = 4640;
+                } else {
+                    key.label = createStyledLabel("ሰ", "ሠ");
+                    key.codes[0] = 4656;
+                }
+            }
+
+            // Check for the 'በ'/'ቨ' key (Unicode 4704 and 4712)
+            else if (key.codes[0] == 4704 || key.codes[0] == 4712) {
+                if (isShifted) {
+                    key.label = "ቨ";
+                    key.codes[0] = 4712;
+                } else {
+                    key.label = createStyledLabel("በ", "ቨ");
+                    key.codes[0] = 4704;
+                }
+            }
+
+            // Check for the 'አ'/'ዐ' key (Unicode 4768 and 4816)
+            else if (key.codes[0] == 4768 || key.codes[0] == 4816) {
+                if (isShifted) {
+                    key.label = "ዐ";
+                    key.codes[0] = 4816;
+                } else {
+                    key.label = createStyledLabel("አ", "ዐ");
+                    key.codes[0] = 4768;
+                }
+            }
+
+            // Check for the 'ፀ'/'ጸ' key (Unicode 4928 and 4920)
+            else if (key.codes[0] == 4928 || key.codes[0] == 4920) {
+                if (isShifted) {
+                    key.label = "ጸ";
+                    key.codes[0] = 4920;
+                } else {
+                    key.label = createStyledLabel("ፀ", "ጸ");
+                    key.codes[0] = 4928;
+                }
+            }
+
+            // Check for the 'ኸ'/'ኀ' key (Unicode 4736 and 4784)
+            else if (key.codes[0] == 4736 || key.codes[0] == 4792) {
+                if (isShifted) {
+                    key.label = "ኀ";
+                    key.codes[0] = 4736;
+                } else {
+                    key.label = createStyledLabel("ኸ", "ኀ");
+                    key.codes[0] = 4792;
+                }
+            }
+
+            // Check for standard English letters (a-z and A-Z)
+            else if (key.codes[0] >= 65 && key.codes[0] <= 122) {
+                String label = key.label.toString();
+                if (isShifted) {
+                    key.label = label.toUpperCase();
+                    key.codes[0] = Character.toUpperCase(key.codes[0]);
+                } else {
+                    key.label = label.toLowerCase();
+                    key.codes[0] = Character.toLowerCase(key.codes[0]);
+                }
+            }
+        }
+
+        currentKeyboard.setShifted(isShifted);
+        kv.invalidateAllKeys();
     }
 }
