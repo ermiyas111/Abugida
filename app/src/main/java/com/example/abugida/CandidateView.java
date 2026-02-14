@@ -108,6 +108,20 @@ public class CandidateView extends View {
         setVerticalScrollBarEnabled(false);
     }
 
+    public void applyTheme(KeyboardTheme theme) {
+        if (theme == null) {
+            return;
+        }
+        setBackgroundColor(theme.getCandidateBackground());
+        mColorNormal = theme.getCandidateTextNormal();
+        mColorRecommended = theme.getCandidateTextRecommended();
+        mColorOther = theme.getCandidateTextOther();
+        if (mPaint != null) {
+            mPaint.setColor(mColorNormal);
+        }
+        invalidate();
+    }
+
     /**
      * A connection back to the service to communicate with the text field
      * @param listener

@@ -2,6 +2,9 @@ package com.example.abugida;
 
 import android.content.ClipDescription;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.drawable.Drawable;
 import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
@@ -31,7 +34,11 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.TextView;
+import android.view.Gravity;
+import android.graphics.drawable.GradientDrawable;
 
 import com.example.abogida.R;
 
@@ -118,6 +125,35 @@ public class SoftKeyboard extends InputMethodService
 
     private int currentSwipingBox = 100;
 
+    private KeyboardTheme currentTheme;
+    private PopupWindow themePopup;
+    private KeyboardSettings keyboardSettings;
+    private BroadcastReceiver themeChangeReceiver;
+
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        themeChangeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (ThemeManager.ACTION_THEME_CHANGED.equals(intent.getAction())) {
+                    applyTheme(ThemeManager.loadTheme(context));
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter(ThemeManager.ACTION_THEME_CHANGED);
+        registerReceiver(themeChangeReceiver, filter);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (themeChangeReceiver != null) {
+            unregisterReceiver(themeChangeReceiver);
+            themeChangeReceiver = null;
+        }
+        super.onDestroy();
+    }
 
     @Override
     public View onCreateInputView() {
@@ -132,6 +168,8 @@ public class SoftKeyboard extends InputMethodService
         kv.setKeyboard(keyboard);
         kv.setDrawingCacheEnabled(true);
         mPredictionOn = false;
+        applyTheme(ThemeManager.loadTheme(this));
+        applyUserSettings();
 
         for (Keyboard.Key key : keyboard.getKeys()) {
             // Find 'ሀ' and add 'ሐ' as superscript
@@ -314,6 +352,9 @@ public class SoftKeyboard extends InputMethodService
     @Override public View onCreateCandidatesView() {
         mCandidateView = new CandidateView(getDisplayContext());
         mCandidateView.setService(this);
+        if (currentTheme != null) {
+            mCandidateView.applyTheme(currentTheme);
+        }
         return mCandidateView;
     }
 
@@ -322,6 +363,8 @@ public class SoftKeyboard extends InputMethodService
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
         retrieveKeys();
+
+        applyUserSettings();
 
         mComposing.setLength(0);
         updateCandidates();
@@ -410,6 +453,16 @@ public class SoftKeyboard extends InputMethodService
                         setKeyBoardLayout(MKeyboardView.qwertyLayoutName);
                     }
 
+                    break;
+                case 32:
+                    if (keyboardSettings != null && keyboardSettings.isAutoPickSuggestionOnSpace()) {
+                        String suggestion = kv.getTopSuggestion();
+                        if (suggestion != null && suggestion.length() > 0) {
+                            pickSuggestionManually(suggestion);
+                            break;
+                        }
+                    }
+                    ic.commitText(" ", 1);
                     break;
                 default:
                     if (primaryCode < 4608 || primaryCode >= 4952) {
@@ -622,6 +675,12 @@ public class SoftKeyboard extends InputMethodService
 
 
     private void playClick(int keyCode){
+        if (keyboardSettings == null) {
+            keyboardSettings = KeyboardSettings.load(this);
+        }
+        if (!keyboardSettings.isSoundOnKeypress()) {
+            return;
+        }
         AudioManager am = (AudioManager)getSystemService(AUDIO_SERVICE);
         switch(keyCode){
             case 32:
@@ -1034,6 +1093,92 @@ public class SoftKeyboard extends InputMethodService
         kv.setKeyboard(keyboard);
         kv.setOnKeyboardActionListener(this);
         retrieveKeys();
+        if (currentTheme != null) {
+            applyTheme(currentTheme);
+        }
+    }
+
+    private void applyTheme(KeyboardTheme theme) {
+        if (theme == null || kv == null) {
+            return;
+        }
+        currentTheme = theme;
+        kv.applyTheme(theme);
+        if (mCandidateView != null) {
+            mCandidateView.applyTheme(theme);
+        }
+    }
+
+    private void applyUserSettings() {
+        keyboardSettings = KeyboardSettings.load(this);
+        if (kv != null) {
+            kv.setPreviewEnabled(keyboardSettings.isShowKeyPreview());
+            kv.setShowSuggestions(keyboardSettings.isShowSuggestions());
+        }
+        mPredictionOn = keyboardSettings.isShowSuggestions();
+        if (!keyboardSettings.isShowSuggestions()) {
+            setCandidatesViewShown(false);
+        }
+    }
+
+    public void showThemePicker() {
+        if (themePopup != null && themePopup.isShowing()) {
+            themePopup.dismiss();
+            return;
+        }
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View popupView = inflater.inflate(R.layout.theme_picker, null);
+        LinearLayout container = popupView.findViewById(R.id.theme_list_container);
+        TextView title = popupView.findViewById(R.id.theme_picker_title);
+        if (currentTheme != null) {
+            title.setTextColor(currentTheme.getCandidateTextNormal());
+            popupView.setBackgroundColor(currentTheme.getCandidateBackground());
+        }
+
+        for (final KeyboardTheme theme : ThemeManager.getThemes()) {
+            Button button = new Button(this);
+            String label = theme.getName();
+            if (currentTheme != null && theme.getId().equals(currentTheme.getId())) {
+                label = label + " (selected)";
+                button.setEnabled(false);
+            }
+            button.setText(label);
+            button.setAllCaps(false);
+            GradientDrawable background = new GradientDrawable();
+            background.setColor(theme.getKeyBackgroundPrimary());
+            background.setCornerRadius(18f);
+            button.setBackground(background);
+            button.setTextColor(theme.getKeyTextPrimary());
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            params.bottomMargin = 16;
+            button.setLayoutParams(params);
+            button.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    ThemeManager.saveTheme(SoftKeyboard.this, theme);
+                    applyTheme(theme);
+                    Intent intent = new Intent(ThemeManager.ACTION_THEME_CHANGED);
+                    sendBroadcast(intent);
+                    if (themePopup != null) {
+                        themePopup.dismiss();
+                    }
+                }
+            });
+            container.addView(button);
+        }
+
+        themePopup = new PopupWindow(
+                popupView,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                true
+        );
+        themePopup.setOutsideTouchable(true);
+        themePopup.setFocusable(true);
+        themePopup.showAtLocation(kv, Gravity.BOTTOM, 0, 0);
     }
 
     private void handleShiftPress(Keyboard currentKeyboard) {

@@ -2,4 +2,15 @@
     <string name="app_name">Abugida</string>
     <string name="simple_ime">Abugida</string>
     <string name="subtype_en_US">English (US)</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_settings">Settings</string>
+    <string name="tab_themes">Themes</string>
+    <string name="home_title">Abugida Keyboard</string>
+    <string name="home_tagline">Type Amharic and English with smooth swipe selection and smart suggestions.</string>
+    <string name="home_section_title">What you can do</string>
+    <string name="home_feature_1">Slide on a fidel to select variants fast.</string>
+    <string name="home_feature_2">Switch between Amharic, English, and Numbers.</string>
+    <string name="home_feature_3">Customize themes and typing behavior.</string>
+    <string name="settings_title">Keyboard Settings</string>
+    <string name="themes_title">Themes</string>
 </resources>

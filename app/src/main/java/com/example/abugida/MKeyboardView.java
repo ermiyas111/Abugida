@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
@@ -29,16 +30,38 @@ import java.util.regex.Pattern;
 public class MKeyboardView extends KeyboardView {
     private int colorMilky;
     private int colorLightGrey;
+    private int keyBackgroundPrimary;
+    private int keyBackgroundSecondary;
+    private int keyTextPrimary;
+    private int keyTextSecondary;
+    private int keyboardBackground;
+    private int suggestionTextColor;
+    private boolean showSuggestions = true;
     public MKeyboardView(Context context, AttributeSet attrs) {
         super(context, attrs);
         Resources r = context.getResources();
         colorMilky = r.getColor(R.color.colorMilky);
         colorLightGrey = r.getColor(R.color.colorLightGrey);
+        keyBackgroundPrimary = r.getColor(R.color.colorMilky);
+        keyBackgroundSecondary = r.getColor(R.color.colorBlack);
+        keyTextPrimary = r.getColor(android.R.color.white);
+        keyTextSecondary = r.getColor(android.R.color.white);
+        keyboardBackground = r.getColor(R.color.colorBlack);
+        suggestionTextColor = Color.rgb(195, 195, 195);
         loadDictionary();
     }
 
     public MKeyboardView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
+        Resources r = context.getResources();
+        colorMilky = r.getColor(R.color.colorMilky);
+        colorLightGrey = r.getColor(R.color.colorLightGrey);
+        keyBackgroundPrimary = r.getColor(R.color.colorMilky);
+        keyBackgroundSecondary = r.getColor(R.color.colorBlack);
+        keyTextPrimary = r.getColor(android.R.color.white);
+        keyTextSecondary = r.getColor(android.R.color.white);
+        keyboardBackground = r.getColor(R.color.colorBlack);
+        suggestionTextColor = Color.rgb(195, 195, 195);
         loadDictionary(); // Load the dictionary when the view is created
     }
 
@@ -275,8 +298,8 @@ public class MKeyboardView extends KeyboardView {
         canvas.drawRect(200, 108, 285, 400, rectangle);*/
         //canvas.drawRect(200, 109, 285, 400, rectangle);
 
-        if(currentKeyboarrdLayout.equals(hahuLayoutName) ||
-                currentKeyboarrdLayout.equals(qwertyLayoutName)){
+        if(showSuggestions && (currentKeyboarrdLayout.equals(hahuLayoutName) ||
+            currentKeyboarrdLayout.equals(qwertyLayoutName))){
             displayWord(canvas);
         }
 
@@ -284,6 +307,38 @@ public class MKeyboardView extends KeyboardView {
 
     public void setService(SoftKeyboard service) {
         mService = service;
+    }
+
+    public void applyTheme(KeyboardTheme theme) {
+        if (theme == null) {
+            return;
+        }
+        keyBackgroundPrimary = theme.getKeyBackgroundPrimary();
+        keyBackgroundSecondary = theme.getKeyBackgroundSecondary();
+        keyTextPrimary = theme.getKeyTextPrimary();
+        keyTextSecondary = theme.getKeyTextSecondary();
+        keyboardBackground = theme.getKeyboardBackground();
+        suggestionTextColor = theme.getSuggestionTextColor();
+        colorMilky = theme.getKeyBackgroundPrimary();
+        colorLightGrey = theme.getKeyBackgroundSecondary();
+        setBackgroundColor(keyboardBackground);
+        invalidate();
+    }
+
+    public void setShowSuggestions(boolean showSuggestions) {
+        this.showSuggestions = showSuggestions;
+        if (!showSuggestions) {
+            suggestionRects.clear();
+            currentSuggestions.clear();
+        }
+        invalidate();
+    }
+
+    public String getTopSuggestion() {
+        if (currentSuggestions == null || currentSuggestions.isEmpty()) {
+            return null;
+        }
+        return currentSuggestions.get(0);
     }
 
     // This method checks if a suggestion was tapped and returns true if so.
@@ -391,6 +446,17 @@ public class MKeyboardView extends KeyboardView {
         return super.onTouchEvent(me);
     }
 
+    @Override
+    protected boolean onLongPress(Keyboard.Key key) {
+        if (key != null && key.codes != null && key.codes.length > 0 && key.codes[0] == 32) {
+            if (mService != null) {
+                mService.showThemePicker();
+                return true;
+            }
+        }
+        return super.onLongPress(key);
+    }
+
     public String universalTrim(String inputText) {
         if (inputText == null || inputText.isEmpty()) {
             return "";
@@ -460,7 +526,7 @@ public class MKeyboardView extends KeyboardView {
 
         Paint paint = new Paint();
         paint.setTextSize(45);
-        paint.setColor(Color.rgb(195, 195, 195));
+        paint.setColor(suggestionTextColor);
         paint.setTextAlign(Paint.Align.LEFT); // Important for accurate positioning
 
         // Get the list of suggestions
@@ -564,23 +630,21 @@ public class MKeyboardView extends KeyboardView {
     private void setKeyColorForAmharicKeyboard(Canvas canvas){
         List<Keyboard.Key> keys = getKeyboard().getKeys();
         for(Keyboard.Key key: keys) {
-            if(key.codes[0] >= 4608 && key.codes[0] < 4952 || key.codes[0] == 32) {
-                Drawable dr = this.getResources().getDrawable(R.drawable.rounded_keys);
-                dr.setBounds(key.x, key.y, key.x + key.width, key.y + key.height);
-                dr.draw(canvas);
+            boolean isPrimaryKey = (key.codes[0] >= 4608 && key.codes[0] < 4952)
+                    || (key.codes[0] >= 65 && key.codes[0] <= 122)
+                    || (key.codes[0] >= 48 && key.codes[0] <= 57)
+                    || key.codes[0] == 32;
 
-                int keyTextColor = Color.rgb(255, 255, 255);
+            int keyBackground = isPrimaryKey ? keyBackgroundPrimary : keyBackgroundSecondary;
+            int keyTextColor = isPrimaryKey ? keyTextPrimary : keyTextSecondary;
 
-                setKeyText(canvas, key, keyTextColor);
-            }else {
-                Drawable dr = this.getResources().getDrawable(R.drawable.black_background);
-                dr.setBounds(key.x, key.y, key.x + key.width, key.y + key.height);
-                dr.draw(canvas);
+            Paint rectangle = new Paint();
+            rectangle.setColor(keyBackground);
+            rectangle.setStrokeWidth(10);
+            RectF rect = new RectF(key.x, key.y, key.x + key.width, key.y + key.height);
+            canvas.drawRoundRect(rect, 12f, 12f, rectangle);
 
-                int keyTextColor = Color.WHITE;
-
-                setKeyText(canvas, key, keyTextColor);
-            }
+            setKeyText(canvas, key, keyTextColor);
         }
     }
 
