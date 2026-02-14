@@ -3,8 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
-    android:background="#ffff00"
+    android:background="@drawable/key_preview_bg"
+    android:textColor="#1B1B1B"
     android:textStyle="bold"
-    android:textSize="30sp"
+    android:textSize="24sp"
     >
 </TextView>

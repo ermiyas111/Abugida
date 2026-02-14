@@ -8,6 +8,6 @@
     android:layout_alignParentBottom="true"
     android:keyTextSize="25dp"
     android:requiresFadingEdge="vertical"
-    android:background="@color/colorBlack"
+    android:background="@android:color/transparent"
 
     />

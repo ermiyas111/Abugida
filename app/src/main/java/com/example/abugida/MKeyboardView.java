@@ -638,14 +638,25 @@ public class MKeyboardView extends KeyboardView {
             int keyBackground = isPrimaryKey ? keyBackgroundPrimary : keyBackgroundSecondary;
             int keyTextColor = isPrimaryKey ? keyTextPrimary : keyTextSecondary;
 
+            float inset = dpToPx(2.5f);
+            float radius = dpToPx(10f);
             Paint rectangle = new Paint();
             rectangle.setColor(keyBackground);
             rectangle.setStrokeWidth(10);
-            RectF rect = new RectF(key.x, key.y, key.x + key.width, key.y + key.height);
-            canvas.drawRoundRect(rect, 12f, 12f, rectangle);
+            RectF rect = new RectF(
+                    key.x + inset,
+                    key.y + inset,
+                    key.x + key.width - inset,
+                    key.y + key.height - inset
+            );
+            canvas.drawRoundRect(rect, radius, radius, rectangle);
 
             setKeyText(canvas, key, keyTextColor);
         }
+    }
+
+    private float dpToPx(float dp) {
+        return dp * getResources().getDisplayMetrics().density;
     }
 
     private void setKeyText(Canvas canvas, Keyboard.Key key, int keyTextColor) {
